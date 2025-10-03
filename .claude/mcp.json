@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "ozon-api": {
+      "command": "/Users/r2d2/Documents/Code_Projects/spacechemical-nextjs/bmad-openapi-mcp-server/generated-mcp-servers/ozon-mcp-server/run_server.sh"
+    },
+    "context7": {
+      "transport": "http",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "ctx7sk-b7494bf0-990b-4c05-9370-4e03404b238c"
+      }
+    }
+  }
+}
