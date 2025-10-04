@@ -10,7 +10,9 @@
     "build": "npm run build --workspaces",
     "test": "npm run test --workspaces",
     "lint": "eslint packages --ext .ts",
-    "clean": "npm run clean --workspaces"
+    "clean": "npm run clean --workspaces",
+    "cli": "npm run dev --workspace=packages/cli",
+    "cli:build": "npm run build --workspace=packages/cli"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
