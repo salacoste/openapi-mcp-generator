@@ -1,0 +1,62 @@
+# CI Pipeline - Automated testing and build verification
+#
+# This workflow runs on every pull request and push to main branch.
+# It ensures code quality by running tests, linting, and TypeScript compilation
+# across multiple Node.js versions and operating systems.
+#
+# Quality Gates (all must pass):
+# - TypeScript compilation (strict mode)
+# - ESLint (no errors)
+# - Unit tests (≥80% coverage)
+# - Build succeeds for all packages
+#
+# Matrix Strategy: 3 Node versions × 3 OS = 9 parallel jobs
+
+name: CI Pipeline
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+jobs:
+  test:
+    name: Test (Node ${{ matrix.node-version }} on ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [18, 20, 22]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8.15.1
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run TypeScript compilation
+        run: pnpm tsc --noEmit
+
+      - name: Run linting
+        run: pnpm lint
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Build packages
+        run: pnpm build

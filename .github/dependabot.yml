@@ -1,0 +1,42 @@
+# Dependabot Configuration
+# Automated dependency updates for security and maintenance
+#
+# Update Policy:
+# - Critical/High vulnerabilities: Patch within 48h
+# - Medium vulnerabilities: Patch within 2 weeks
+# - Weekly scans for all dependencies
+
+version: 2
+updates:
+  # npm package ecosystem
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+    open-pull-requests-limit: 5
+    reviewers:
+      - 'salacoste'
+    commit-message:
+      prefix: 'deps'
+      include: 'scope'
+    labels:
+      - 'dependencies'
+      - 'automated'
+
+  # GitHub Actions updates
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+    open-pull-requests-limit: 3
+    reviewers:
+      - 'salacoste'
+    commit-message:
+      prefix: 'ci'
+    labels:
+      - 'ci/cd'
+      - 'automated'

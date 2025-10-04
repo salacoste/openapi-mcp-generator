@@ -2,7 +2,8 @@
 
 > Universal generator that converts OpenAPI/Swagger specifications into MCP (Model Context Protocol) servers, enabling AI agents to interact with any REST API.
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/your-org/openapi-to-mcp)
+[![CI Pipeline](https://github.com/salacoste/openapi-mcp-generator/actions/workflows/test.yml/badge.svg)](https://github.com/salacoste/openapi-mcp-generator/actions/workflows/test.yml)
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/salacoste/openapi-mcp-generator)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue.svg)](https://www.typescriptlang.org/)
 [![Node](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
@@ -388,6 +389,60 @@ npm run test:e2e
 - Shared: 90% lines, 90% functions
 
 See [Testing Guide](./docs/testing.md) for details.
+
+---
+
+## 🔄 CI/CD
+
+### Automated Checks
+
+Every pull request and push to main branch triggers automated quality checks:
+
+**Quality Gates** (all must pass):
+- ✅ TypeScript compilation (strict mode)
+- ✅ ESLint (no errors)
+- ✅ Unit tests (≥80% coverage)
+- ✅ Build succeeds for all packages
+
+**Test Matrix**:
+- **Node.js versions**: 18, 20, 22 (LTS)
+- **Operating systems**: Ubuntu, macOS, Windows
+- **Total jobs**: 9 parallel tests
+
+### Running Checks Locally
+
+Before pushing code, run all CI checks locally:
+
+```bash
+# Run all checks in order
+pnpm install
+pnpm tsc --noEmit  # TypeScript compilation
+pnpm lint          # ESLint
+pnpm test          # Unit tests
+pnpm build         # Build packages
+```
+
+### Troubleshooting CI Failures
+
+**TypeScript errors**:
+- Check `pnpm tsc --noEmit` output
+- Ensure all types are properly defined
+- Verify `tsconfig.json` is correct
+
+**Linting errors**:
+- Run `pnpm lint` to see errors
+- Auto-fix: `pnpm lint --fix`
+- Check `.eslintrc.json` for rules
+
+**Test failures**:
+- Run `pnpm test` locally
+- Check test logs in GitHub Actions
+- Ensure tests are deterministic
+
+**Build failures**:
+- Verify all dependencies installed
+- Check for missing imports
+- Review build scripts in `package.json`
 
 ---
 
