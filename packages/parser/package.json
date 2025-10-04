@@ -1,0 +1,24 @@
+{
+  "name": "@openapi-to-mcp/parser",
+  "version": "0.1.0",
+  "description": "OpenAPI 3.0 parser with $ref resolution",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsc --build --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "20.10.0",
+    "typescript": "5.3.3",
+    "vitest": "1.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

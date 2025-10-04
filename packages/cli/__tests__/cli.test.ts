@@ -53,7 +53,7 @@ describe('Generate Command', () => {
 
   it('should define output option with default value', () => {
     const generateCmd = program.commands[0];
-    const outputOption = generateCmd.options.find(opt => opt.long === '--output');
+    const outputOption = generateCmd.options.find((opt) => opt.long === '--output');
     expect(outputOption).toBeDefined();
     expect(outputOption?.short).toBe('-o');
     expect(outputOption?.defaultValue).toBe('./mcp-server');
@@ -61,28 +61,28 @@ describe('Generate Command', () => {
 
   it('should define format option', () => {
     const generateCmd = program.commands[0];
-    const formatOption = generateCmd.options.find(opt => opt.long === '--format');
+    const formatOption = generateCmd.options.find((opt) => opt.long === '--format');
     expect(formatOption).toBeDefined();
     expect(formatOption?.short).toBe('-f');
   });
 
   it('should define verbose boolean flag', () => {
     const generateCmd = program.commands[0];
-    const verboseOption = generateCmd.options.find(opt => opt.long === '--verbose');
+    const verboseOption = generateCmd.options.find((opt) => opt.long === '--verbose');
     expect(verboseOption).toBeDefined();
     expect(verboseOption?.short).toBe('-v');
   });
 
   it('should define auth-type option', () => {
     const generateCmd = program.commands[0];
-    const authOption = generateCmd.options.find(opt => opt.long === '--auth-type');
+    const authOption = generateCmd.options.find((opt) => opt.long === '--auth-type');
     expect(authOption).toBeDefined();
     expect(authOption?.short).toBe('-a');
   });
 
   it('should define force option', () => {
     const generateCmd = program.commands[0];
-    const forceOption = generateCmd.options.find(opt => opt.long === '--force');
+    const forceOption = generateCmd.options.find((opt) => opt.long === '--force');
     expect(forceOption).toBeDefined();
   });
 });
@@ -92,7 +92,7 @@ describe('CLI Version and Help', () => {
     const program = new Command();
     program.version('0.1.0', '-V, --version');
 
-    const versionOption = program.options.find(opt => opt.long === '--version');
+    const versionOption = program.options.find((opt) => opt.long === '--version');
     expect(versionOption).toBeDefined();
     expect(versionOption?.short).toBe('-V');
   });

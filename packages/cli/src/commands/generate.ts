@@ -25,14 +25,23 @@ export function registerGenerateCommand(program: Command): void {
     .description('Generate an MCP server from an OpenAPI specification')
     .argument('<openapi-path>', 'path to OpenAPI specification file (JSON or YAML)')
     .option('-o, --output <dir>', 'output directory for generated MCP server', './mcp-server')
-    .option('-f, --format [json|yaml]', 'OpenAPI specification format (auto-detected if not specified)')
+    .option(
+      '-f, --format [json|yaml]',
+      'OpenAPI specification format (auto-detected if not specified)'
+    )
     .option('-v, --verbose', 'enable verbose output for debugging')
-    .option('-a, --auth-type [apiKey|bearer|basic]', 'authentication type (auto-detected from spec if not specified)')
+    .option(
+      '-a, --auth-type [apiKey|bearer|basic]',
+      'authentication type (auto-detected from spec if not specified)'
+    )
     .option('--force', 'overwrite output directory if it exists')
-    .addHelpText('after', `
+    .addHelpText(
+      'after',
+      `
 Examples:
   $ openapi-to-mcp generate petstore.yaml --output ./my-server
-  $ openapi-to-mcp generate api.json -o ./server -a bearer -v`)
+  $ openapi-to-mcp generate api.json -o ./server -a bearer -v`
+    )
     .action((openapiPath: string, options: GenerateOptions) => {
       // Set verbose mode for error handling
       if (options.verbose) {

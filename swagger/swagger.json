@@ -18,23 +18,11 @@
   "x-tagGroups": [
     {
       "name": "Общее описание",
-      "tags": [
-        "Intro",
-        "Token",
-        "Limits",
-        "News"
-      ]
+      "tags": ["Intro", "Token", "Limits", "News"]
     },
     {
       "name": "Методы Performance API",
-      "tags": [
-        "Campaign",
-        "Statistics",
-        "Ad",
-        "Product",
-        "Search-Promo",
-        "Vendor"
-      ]
+      "tags": ["Campaign", "Statistics", "Ad", "Product", "Search-Promo", "Vendor"]
     }
   ],
   "tags": [
@@ -87,9 +75,7 @@
   "paths": {
     "/api/client/campaign": {
       "get": {
-        "tags": [
-          "Campaign"
-        ],
+        "tags": ["Campaign"],
         "summary": "Список кампаний",
         "operationId": "ListCampaigns",
         "parameters": [
@@ -174,9 +160,7 @@
                         "fromDate": "2019-10-07",
                         "toDate": "2021-10-07",
                         "dailyBudget": 504000000,
-                        "placement": [
-                          "PLACEMENT_PDP"
-                        ],
+                        "placement": ["PLACEMENT_PDP"],
                         "budget": 50000000,
                         "createdAt": "2019-10-07T06:28:44.055042Z",
                         "updatedAt": "2020-10-01T06:28:44.055042Z",
@@ -202,9 +186,7 @@
                         "fromDate": "2019-10-07",
                         "toDate": "2021-10-07",
                         "dailyBudget": 202000000,
-                        "placement": [
-                          "PLACEMENT_PDP"
-                        ],
+                        "placement": ["PLACEMENT_PDP"],
                         "budget": 40000000,
                         "createdAt": "2019-10-07T06:28:44.055042Z",
                         "updatedAt": "2020-10-01T06:28:44.055042Z",
@@ -244,9 +226,7 @@
     },
     "/api/client/campaign/{campaignId}/objects": {
       "get": {
-        "tags": [
-          "Campaign"
-        ],
+        "tags": ["Campaign"],
         "summary": "Список продвигаемых объектов в кампании",
         "description": "\nМетод для получения списка продвигаемых объектов в кампаниях «Оплата за клик», «Баннеры» и «Видеобаннеры».\n\nЧтобы получить товары в кампании «Оплата за заказ», используйте [POST /campaign/search_promo/v2/products](#operation/ExternalCampaign_ListSearchPromoProductsV2).\n",
         "operationId": "ListCampaignObjects",
@@ -294,9 +274,7 @@
     },
     "/api/client/limits/list": {
       "get": {
-        "tags": [
-          "Campaign"
-        ],
+        "tags": ["Campaign"],
         "summary": "Лимиты ставок для инструментов продвижения",
         "description": "\nВы можете получить лимиты ставок по инструментам:\n- Оплата за заказ:\n  - Минимальная и максимальная ставка для инструмента.\n  - Минимальные ставки за заказ для некоторых категорий товаров.\n- Спецразмещение и Оплата за клик:\n  - Минимальная и максимальная ставка за клик.\n  - Минимальные ставки за клик для некоторых категорий товаров.\n",
         "operationId": "GetLimitsList",
@@ -326,9 +304,7 @@
     },
     "/api/client/min/sku": {
       "post": {
-        "tags": [
-          "Campaign"
-        ],
+        "tags": ["Campaign"],
         "operationId": "ExternalCampaign_BidBySKU",
         "summary": "Минимальная ставка для товаров по SKU",
         "description": "Используйте метод, чтобы узнать минимальную ставку для одного или нескольких товаров по SKU.",
@@ -361,9 +337,7 @@
     },
     "/api/client/statistics": {
       "post": {
-        "tags": [
-          "Statistics"
-        ],
+        "tags": ["Statistics"],
         "summary": "Статистика по кампании",
         "description": "\nВ запросе укажите временной промежуток с помощью полей `from` и `to` или `dateFrom` и `dateTo`. Если заполнены все\nчетыре поля, в ответе будет статистика по временному промежутку из полей `dateFrom` и `dateTo`.\n\nPerformance API асинхронный. Поэтому в результате запроса будет не сам отчёт, а уникальный идентификатор\nотправленного запроса, с помощью которого можно [проверить статус формирования отчёта](#operation/StatisticsCheck) и [скачать отчёт](#operation/DownloadStatistics).\nФормат отчёта — CSV. \n\nАрхивы с примерами отчётов для разных типов кампаний:\n- [Баннеры](https://cdn.ozone.ru/s3/ozon-disk-api/techdoc/performance/api/report-examples/banner_1705412069.zip)\n- [Видеобаннеры](https://cdn.ozone.ru/s3/ozon-disk-api/techdoc/performance/api/report-examples/videobanner_1705412072.zip)\n- [Оплата за клик](https://cdn.ozone.ru/s3/ozon-disk-api/techdoc/performance/api/report-examples/stencils_1705412070.zip)\n- [Оплата за заказ](https://cdn.ozone.ru/s3/ozon-disk-api/techdoc/performance/api/report-examples/search_promo_1705412070.zip)\n\nЧтобы запросить отчёт в формате JSON, добавьте в адрес метода `/json` и отправьте запрос по адресу `/api/client/statistics/json`.\n",
         "operationId": "SubmitRequest",
@@ -406,9 +380,7 @@
     },
     "/api/client/statistics/video": {
       "post": {
-        "tags": [
-          "Statistics"
-        ],
+        "tags": ["Statistics"],
         "summary": "Статистика по показам видеобаннера",
         "description": "\nВ запросе укажите временной промежуток с помощью полей `dateFrom` и `dateTo`.\n\nPerformance API асинхронный. Поэтому в результате запроса будет не сам отчёт, а уникальный идентификатор\nотправленного запроса, с помощью которого можно [проверить статус формирования отчёта](#operation/StatisticsCheck) и [скачать отчёт](#operation/DownloadStatistics).\nФормат отчёта — CSV. \n\nОтчёт содержит:\n- идентификатор кампании;\n- период отчёта;\n- идентификатор баннера;\n- видимые показы;\n- показы;\n- клики;\n- охват;\n- CTR;\n- доля видимых показов;\n- досмотры по квартилям: 25%, 50%, 75% и 100%;\n- доля досмотров: 25%, 50%, 75% и 100%;\n- просмотры со звуком;\n- заказы;\n- расход.\n\nЧтобы запросить отчёт в формате JSON, добавьте в адрес метода `/json` и отправьте запрос по адресу `/api/client/statistics/video/json`.\n",
         "operationId": "VideoCampaignsSubmitRequest",
@@ -451,9 +423,7 @@
     },
     "/api/client/statistics/attribution": {
       "post": {
-        "tags": [
-          "Statistics"
-        ],
+        "tags": ["Statistics"],
         "summary": "Отчёт по заказам",
         "description": "\nМетод для получения отчёта по заказам на баннеры.\n\nВ запросе укажите временной промежуток с помощью полей `from` и `to` или `dateFrom` и `dateTo`. Если заполнены все\n   четыре поля, в ответе будет статистика по временному промежутку из полей `dateFrom` и `dateTo`.\n\nPerformance API асинхронный. Поэтому в результате запроса будет не сам отчёт, а уникальный идентификатор\nотправленного запроса, с помощью которого можно [проверить статус формирования отчёта](#operation/StatisticsCheck) и [скачать отчёт](#operation/DownloadStatistics).\nФормат отчёта — CSV. \n\nОтчёт содержит:\n- идентификатор кампании,\n- период отчёта,\n- SKU,\n- названия товаров,\n- количество заказов,\n- выручка в рублях,\n- количество заказов модели,\n- выручка с заказов модели.    \n\n\nЧтобы запросить отчёт в формате JSON, добавьте в адрес метода `/json` и отправьте запрос по адресу `/api/client/statistics/attribution/json`.\n",
         "operationId": "AttributionSubmitRequest",
@@ -495,9 +465,7 @@
     },
     "/api/client/statistics/{UUID}": {
       "get": {
-        "tags": [
-          "Statistics"
-        ],
+        "tags": ["Statistics"],
         "summary": "Cтатус отчёта",
         "operationId": "StatisticsCheck",
         "parameters": [
@@ -527,9 +495,7 @@
                   "request": {
                     "attributionDays": "",
                     "campaignId": 1,
-                    "campaigns": [
-                      12558
-                    ],
+                    "campaigns": [12558],
                     "dateFrom": "2020-03-01",
                     "dateTo": "2020-03-20",
                     "from": "2020-03-01T00:00:00Z",
@@ -564,9 +530,7 @@
     },
     "/api/client/statistics/list": {
       "get": {
-        "tags": [
-          "Statistics"
-        ],
+        "tags": ["Statistics"],
         "summary": "Список отчётов, сгенерированных через интерфейс",
         "description": "\nМетод для получения списка отчётов, которые сгенерированы через интерфейс рекламного кабинета.\n",
         "operationId": "ListReports",
@@ -622,9 +586,7 @@
     },
     "/api/client/statistics/externallist": {
       "get": {
-        "tags": [
-          "Statistics"
-        ],
+        "tags": ["Statistics"],
         "summary": "Список отчётов, сгенерированных через API",
         "operationId": "ListReportsExternal",
         "description": "\nМетод для получения списка отчётов, которые сгенерированы через API сервисными аккаунтами.\n",
@@ -680,9 +642,7 @@
     },
     "/api/client/statistics/report": {
       "get": {
-        "tags": [
-          "Statistics"
-        ],
+        "tags": ["Statistics"],
         "summary": "Получить отчёты",
         "description": "При успешном запросе ссылка на скачивание отчёта в формате CSV или ZIP появится в поле `link` при использовании метода [«Статус отчета»](#operation/StatisticsCheck).\n\nФормат отчёта в заголовке ответа указан в поле `content-type`. Формат зависит от того, сколько кампаний в поле `campaigns` исходного запроса:\n- CSV — если в списке одна кампания.\n- ZIP-архив — если в списке несколько кампаний. Каждый файл соответствует одной кампании из списка. Имя файла вида `<идентификатор кампании>.csv`.\n",
         "operationId": "DownloadStatistics",
@@ -756,9 +716,7 @@
     },
     "/api/client/statistics/campaign/media": {
       "get": {
-        "tags": [
-          "Statistics"
-        ],
+        "tags": ["Statistics"],
         "summary": "Статистика по медийным кампаниям",
         "description": "\nВ запросе укажите временной промежуток с помощью полей `from` и `to` или `dateFrom` и `dateTo`. Если заполнены все\nчетыре поля, в ответе будет статистика по временному промежутку из полей `dateFrom` и `dateTo`.\n\nФормат отчёта — CSV. \n\nЧтобы запросить отчёт в формате JSON, добавьте в адрес метода `/json` и отправьте запрос по адресу `/api/client/statistics/campaign/media/json`.\n\nОтчёт содержит:\n- идентификатор кампании,\n- название кампании,\n- формат кампании,\n- статус кампании,\n- дневной бюджет в рублях,\n- бюджет в рублях,\n- приоритет,\n- расход в рублях,\n- показы,\n- клики,\n- средняя ставка в рублях,\n- средняя цена 1000 показов в рублях,\n- отношение числа кликов к числу показов (CTR),\n- средняя цена клика в рублях,\n- заказы в штуках,\n- заказы в рублях,\n- доля рекламных расходов (ДРР).\n",
         "operationId": "MediaCampaignList",
@@ -843,9 +801,7 @@
     },
     "/api/client/statistics/campaign/product": {
       "get": {
-        "tags": [
-          "Statistics"
-        ],
+        "tags": ["Statistics"],
         "summary": "Статистика по кампаниям Оплата за клик и Спецразмещение",
         "description": "\nВ запросе укажите временной промежуток с помощью полей `from` и `to` или `dateFrom` и `dateTo`. Если заполнены все\nчетыре поля, в ответе будет статистика по временному промежутку из полей `dateFrom` и `dateTo`.\n\nФормат отчёта — CSV. \n\nЧтобы запросить отчёт в формате JSON, добавьте в адрес метода `/json` и отправьте запрос по адресу `/api/client/statistics/campaign/product/json`.\n\nОтчёт содержит:\n- идентификатор кампании,\n- название кампании,\n- статус кампании,\n- дневной бюджет в рублях,\n- недельный бюджет в рублях,\n- расход в рублях,\n- показы,\n- клики,\n- количество добавлений товара в корзину,\n- средняя ставка в рублях,\n- средняя цена 1000 показов в рублях,\n- отношение числа кликов к числу показов (CTR),\n- средняя цена клика в рублях,\n- заказы в штуках,\n- заказы в рублях,\n- доля рекламных расходов (ДРР).\n",
         "operationId": "ProductCampaignList",
@@ -930,9 +886,7 @@
     },
     "/api/client/statistics/expense": {
       "get": {
-        "tags": [
-          "Statistics"
-        ],
+        "tags": ["Statistics"],
         "summary": "Статистика по расходу кампаний",
         "description": "\nЕсли в запросе не указаны значения полей `dateFrom` и `dateTo`, то в ответе будет статистика за последние 7 дней.\n\nФормат отчёта — CSV. \n\nЧтобы запросить отчёт в формате JSON, добавьте в адрес метода `/json` и отправьте запрос по адресу `/api/client/statistics/expense/json`.\n\nОтчёт содержит:\n- идентификатор кампании,\n- дата,\n- название,\n- расход,\n- расход бонусов.\n",
         "operationId": "GetCampaignExpense",
@@ -999,9 +953,7 @@
     },
     "/api/client/statistics/daily": {
       "get": {
-        "tags": [
-          "Statistics"
-        ],
+        "tags": ["Statistics"],
         "summary": "Дневная статистика по кампаниям",
         "description": "\nЕсли в запросе не указаны значения полей `dateFrom` и `dateTo`, то в ответе будет статистика за последние 7 дней.\n\nФормат отчёта — CSV. \n\nЧтобы запросить отчёт в формате JSON, добавьте в адрес метода `/json` и отправьте запрос по адресу `/api/client/statistics/daily/json`.\n\nОтчёт содержит:\n- идентификатор кампании,\n- название кампании,\n- дата,\n- показы,\n- клики,\n- расход в рублях,\n- средняя ставка в рублях,\n- заказы в штуках,\n- заказы в рублях.\n",
         "operationId": "GetCampaignDailyStats",
@@ -1068,9 +1020,7 @@
     },
     "/api/client/statistic/orders/generate": {
       "post": {
-        "tags": [
-          "Statistics"
-        ],
+        "tags": ["Statistics"],
         "summary": "Отчёт по заказам в оплате за заказ",
         "description": "\nВ параметрах запроса `from` и `to` укажите промежуток времени.\n\nPerformance API асинхронный.\nПоэтому в результате запроса будет не сам отчёт, а уникальный идентификатор отправленного запроса, с помощью которого можно [проверить статус формирования отчёта](#operation/StatisticsCheck) и [скачать отчёт в формате CSV](#operation/DownloadStatistics).\n\nЧтобы запросить отчёт в формате JSON, добавьте `/json` в адрес метода: `/api/client/statistics/orders/generate/json`.\n  \nОтчёт содержит:\n- период отчёта;\n- дату;\n- ID заказа;\n- номер заказа;\n- Ozon ID;\n- Ozon ID продвигаемого товара;\n- артикул;\n- наименование;\n- количество;\n- цену продажи, ₽;\n- стоимость, ₽;\n- ставку, %;\n- ставку, ₽;\n- расход, ₽.\n",
         "operationId": "SearchPromoOrdersReportSubmitRequest",
@@ -1103,9 +1053,7 @@
     },
     "/api/client/statistic/products/generate": {
       "post": {
-        "tags": [
-          "Statistics"
-        ],
+        "tags": ["Statistics"],
         "summary": "Отчёт по товарам в оплате за заказ",
         "description": "\nВ параметрах запроса `from` и `to` укажите промежуток времени.\n\nPerformance API асинхронный.\nПоэтому в результате запроса будет не сам отчёт, а уникальный идентификатор отправленного запроса, с помощью которого можно [проверить статус формирования отчёта](#operation/StatisticsCheck) и [скачать отчёт в формате CSV](#operation/DownloadStatistics).\n\nЧтобы запросить отчёт в формате JSON, добавьте `/json` в адрес метода: `/api/client/statistics/products/generate/json`.\n\nОтчёт содержит:\n- период отчёта;\n- Ozon ID;\n- артикул;\n- наименование;\n- категорию;\n- продвижение;\n- цену товара, ₽;\n- ставку, %;\n- ставку, ₽;\n- количество заказов;\n- сумму заказов, ₽;\n- расход, ₽;\n- ДРР, %;\n- охват, %;\n- количество показов;\n- количество кликов;\n- CTR, %;\n- последнее изменение.\n",
         "operationId": "SearchPromoProductsReportSubmitRequest",
@@ -1138,9 +1086,7 @@
     },
     "/api/client/campaign/cpc/v2/product": {
       "post": {
-        "tags": [
-          "Ad"
-        ],
+        "tags": ["Ad"],
         "summary": "Создать кампанию с оплатой за клики",
         "description": "\nМетод для создания товарной рекламной кампании с оплатой за клики.\n\nПри успешном выполнении запроса в поле `campaignId` ответа будет идентификатор созданной кампании.\n\nЧтобы создать кампании со спецразмещением, в запросе укажите `placement = PLACEMENT_OVERTOP` и `productAutopilotStrategy = TAKEOVER`.\n",
         "operationId": "CreateProductCampaignCPCV2",
@@ -1173,9 +1119,7 @@
     },
     "/external/api/dynamic_budget": {
       "post": {
-        "tags": [
-          "Ad"
-        ],
+        "tags": ["Ad"],
         "summary": "Рассчитать минимальный бюджет кампании",
         "operationId": "CalculateDynamicBudget",
         "deprecated": true,
@@ -1216,10 +1160,7 @@
     },
     "/api/client/campaign/{campaignId}/activate": {
       "post": {
-        "tags": [
-          "Ad",
-          "Edit"
-        ],
+        "tags": ["Ad", "Edit"],
         "summary": "Активировать кампанию",
         "operationId": "ActivateCampaign",
         "parameters": [
@@ -1269,10 +1210,7 @@
     },
     "/api/client/campaign/{campaignId}/deactivate": {
       "post": {
-        "tags": [
-          "Ad",
-          "Edit"
-        ],
+        "tags": ["Ad", "Edit"],
         "summary": "Выключить кампанию",
         "operationId": "DeactivateCampaign",
         "parameters": [
@@ -1322,10 +1260,7 @@
     },
     "/api/client/campaign/{campaignId}": {
       "patch": {
-        "tags": [
-          "Ad",
-          "Edit"
-        ],
+        "tags": ["Ad", "Edit"],
         "summary": "Параметры кампании",
         "description": "\nМетод для изменения параметров кампании.\n",
         "operationId": "PatchProductCampaign",
@@ -1383,9 +1318,7 @@
     },
     "/api/client/campaign/{campaignId}/products": {
       "post": {
-        "tags": [
-          "Product"
-        ],
+        "tags": ["Product"],
         "summary": "Добавить товары в кампанию",
         "description": "\nВ кампанию можно добавить не более 500 товаров.\n\n**Рекомендации по заполнению параметров для разных кампаний**\n\n- Для добавления в кампанию товаров передайте значения параметров `sku` и `bid`. Если параметр `bid` не указан, \n  автоматически задаётся конкурентная ставка.\n\n- Для кампании с включённой автостратегией параметр `bid` не учитывается. \n\n- Для кампании с включённой автостратегией можно добавлять товары только из категории `autopilot.categoryId`.\n",
         "operationId": "AddProducts",
@@ -1432,9 +1365,7 @@
         ]
       },
       "put": {
-        "tags": [
-          "Product"
-        ],
+        "tags": ["Product"],
         "summary": "Обновить ставки товаров",
         "description": "\nЭтот метод перезаписывает список стоп-слов и фразы со ставками. Исходные стоп-слова и фразы со ставками удаляются.\n\nЧтобы обновить ставки в кампании с размещением в карточке товара, передайте значения параметров `sku` и `bid`.\n\nДля кампаний с включённой автостратегией параметр `bid` не учитывается.\n",
         "operationId": "UpdateProducts",
@@ -1483,9 +1414,7 @@
     },
     "/api/client/campaign/{campaignId}/v2/products": {
       "get": {
-        "tags": [
-          "Product"
-        ],
+        "tags": ["Product"],
         "summary": "Список товаров кампании",
         "operationId": "GetProductsV2",
         "parameters": [
@@ -1544,9 +1473,7 @@
     },
     "/api/client/campaign/{campaignId}/products/delete": {
       "post": {
-        "tags": [
-          "Product"
-        ],
+        "tags": ["Product"],
         "summary": "Удалить товары из кампании",
         "operationId": "DeleteProducts",
         "parameters": [
@@ -1601,9 +1528,7 @@
     },
     "/api/client/campaign/{campaignId}/products/bids/competitive": {
       "get": {
-        "tags": [
-          "Product"
-        ],
+        "tags": ["Product"],
         "summary": "Конкурентные ставки для товара",
         "description": "\nЕсли товар не добавлен в кампанию, в параметре `bid` будет значение `0`.\nВ одном запросе вы можете передать до 200 товаров.\n",
         "operationId": "GetProductsCompetitiveBids",
@@ -1656,9 +1581,7 @@
     },
     "/api/client/campaign/search_promo/v2/products": {
       "post": {
-        "tags": [
-          "Search-Promo"
-        ],
+        "tags": ["Search-Promo"],
         "summary": "Список товаров в продвижении в оплате за заказ",
         "operationId": "ExternalCampaign_ListSearchPromoProductsV2",
         "requestBody": {
@@ -1697,9 +1620,7 @@
     },
     "/api/client/search_promo/bids/recommendation": {
       "post": {
-        "tags": [
-          "Search-Promo"
-        ],
+        "tags": ["Search-Promo"],
         "operationId": "ExternalCampaign_GetProductsRecommendedBids",
         "deprecated": true,
         "summary": "Рекомендованные ставки для товаров",
@@ -1746,9 +1667,7 @@
     },
     "/api/client/campaign/search_promo/v2/bids/set": {
       "post": {
-        "tags": [
-          "Search-Promo"
-        ],
+        "tags": ["Search-Promo"],
         "operationId": "ExternalCampaign_SetSearchPromoBidsV2",
         "deprecated": true,
         "summary": "Установить ставку на товар",
@@ -1789,9 +1708,7 @@
     },
     "/api/client/search_promo/get_cpo_min_bids": {
       "post": {
-        "tags": [
-          "Search-Promo"
-        ],
+        "tags": ["Search-Promo"],
         "operationId": "ExternalCampaign_GetCPOMinBids",
         "summary": "Получить фиксированные ставки для товаров",
         "description": "\nЗа один запрос вы можете передать до 200 SKU.\n",
@@ -1839,9 +1756,7 @@
     },
     "/api/client/search_promo/product/enable": {
       "post": {
-        "tags": [
-          "Search-Promo"
-        ],
+        "tags": ["Search-Promo"],
         "operationId": "ExternalCampaign_BatchEnableProducts",
         "summary": "Включить продвижение товара в оплате за заказ",
         "description": "\nВ одном запросе можно передать максимум 1000 товаров.\n",
@@ -1881,9 +1796,7 @@
     },
     "/api/client/search_promo/product/disable": {
       "post": {
-        "tags": [
-          "Search-Promo"
-        ],
+        "tags": ["Search-Promo"],
         "operationId": "ExternalCampaign_BatchDisableProducts",
         "summary": "Отключить продвижение товара в оплате за заказ",
         "description": "\nВ одном запросе можно передать максимум 1000 товаров.\n",
@@ -1923,9 +1836,7 @@
     },
     "/api/client/campaign/search_promo/v2/bids/delete": {
       "post": {
-        "tags": [
-          "Search-Promo"
-        ],
+        "tags": ["Search-Promo"],
         "operationId": "ExternalCampaign_DeleteSearchPromoBidsV2",
         "summary": "Удалить товар из продвижения в оплате за заказ",
         "description": "\nВ одном запросе можно передать максимум 1000 товаров.\n",
@@ -1967,9 +1878,7 @@
       "post": {
         "summary": "Включить продвижение товаров в акции «Морковск»",
         "description": "Участие в акции доступно только для продавцов.<br>\n[Подробнее об акции](https://seller-edu.ozon.ru/how-to-sell-effectively/advertising-of-goods/morkovsk)\n",
-        "tags": [
-          "Search-Promo"
-        ],
+        "tags": ["Search-Promo"],
         "operationId": "ExternalCampaign_BatchEnableCarrots4",
         "requestBody": {
           "$ref": "#/components/requestBodies/extcampaignBatchEnableCarrotsRequest"
@@ -2014,9 +1923,7 @@
       "post": {
         "summary": "Отключить продвижение товаров в акции «Морковск»",
         "description": "Участие в акции доступно только для продавцов.<br>\n[Подробнее об акции](https://seller-edu.ozon.ru/how-to-sell-effectively/advertising-of-goods/morkovsk)\n",
-        "tags": [
-          "Search-Promo"
-        ],
+        "tags": ["Search-Promo"],
         "operationId": "ExternalCampaign_BatchDisableCarrots4",
         "requestBody": {
           "$ref": "#/components/requestBodies/extcampaignBatchDisableCarrotsRequest"
@@ -2059,9 +1966,7 @@
     },
     "/api/client/vendors/statistics": {
       "post": {
-        "tags": [
-          "Vendor"
-        ],
+        "tags": ["Vendor"],
         "summary": "Отчёт с аналитикой внешнего трафика",
         "description": "\nМетод для запуска формирования отчёта с аналитикой внешнего трафика.\n\nРазница между `dateFrom` и `dateTo` должна быть не больше трёх месяцев. Если разница больше, \nотчёт сформируется за 3 месяца с даты, указанной в `dateFrom`.\n",
         "operationId": "VendorStatisticsSubmitRequest",
@@ -2094,9 +1999,7 @@
     },
     "/api/client/vendors/statistics/list": {
       "get": {
-        "tags": [
-          "Vendor"
-        ],
+        "tags": ["Vendor"],
         "summary": "Список запрошенных отчётов с аналитикой внешнего трафика",
         "operationId": "VendorStatisticsListReports",
         "parameters": [
@@ -2145,9 +2048,7 @@
     },
     "/api/client/vendors/statistics/{UUID}": {
       "get": {
-        "tags": [
-          "Vendor"
-        ],
+        "tags": ["Vendor"],
         "summary": "Информация об отчёте по UUID",
         "operationId": "VendorStatisticsCheck",
         "parameters": [
@@ -2196,9 +2097,7 @@
     },
     "/api/client/organisation/vendor_tag": {
       "get": {
-        "tags": [
-          "Vendor"
-        ],
+        "tags": ["Vendor"],
         "summary": "Метка организации для внешних рекламных кампаний",
         "description": "\nМетод возвращает [префикс для метки UTM_CAMPAIGN](https://docs.ozon.ru/performance/analytics/#как-создать-ссылку-с-utm-метками) по идентификатору организации.\n\n[Подробнее о ссылках для внешних рекламных кампаний](https://docs.ozon.ru/performance/analytics/)\n",
         "operationId": "GetVendorTag",
@@ -2386,13 +2285,7 @@
           "productAutopilotStrategy": {
             "type": "string",
             "default": "NO_AUTO_STRATEGY",
-            "enum": [
-              "MAX_VIEWS",
-              "MAX_CLICKS",
-              "TOP_MAX_CLICKS",
-              "NO_AUTO_STRATEGY",
-              "TAKEOVER"
-            ],
+            "enum": ["MAX_VIEWS", "MAX_CLICKS", "TOP_MAX_CLICKS", "NO_AUTO_STRATEGY", "TAKEOVER"],
             "description": "Автостратегия, которая используется для кампании:\n  - `MAX_VIEWS` — максимальное количество показов;\n  - `MAX_CLICKS` — максимальное количество кликов для Поиска и рекомендаций;\n  - `TOP_MAX_CLICKS` — максимальное количество кликов для Поиска;\n  - `NO_AUTO_STRATEGY` — автостратегия не используется;\n  - `TAKEOVER` — спецразмещение для Поиска.\n"
           },
           "autopilot": {
@@ -2411,10 +2304,7 @@
           "productCampaignMode": {
             "type": "string",
             "default": "PRODUCT_CAMPAIGN_MODE_AUTO",
-            "enum": [
-              "PRODUCT_CAMPAIGN_MODE_AUTO",
-              "PRODUCT_CAMPAIGN_MODE_MANUAL"
-            ],
+            "enum": ["PRODUCT_CAMPAIGN_MODE_AUTO", "PRODUCT_CAMPAIGN_MODE_MANUAL"],
             "description": "Режим создания и управления товарной рекламной кампанией:\n- `PRODUCT_CAMPAIGN_MODE_AUTO` — автоматически;\n- `PRODUCT_CAMPAIGN_MODE_MANUAL` — вручную.\n"
           },
           "autoIncrease": {
@@ -2492,19 +2382,12 @@
           },
           "objectType": {
             "type": "string",
-            "enum": [
-              "SKU",
-              "SEARCH_PROMO"
-            ],
+            "enum": ["SKU", "SEARCH_PROMO"],
             "description": "Тип инструмента:\n- `SKU` — Оплата за клик,\n- `SEARCH_PROMO` — Оплата за заказ.\n"
           },
           "paymentMethod": {
             "type": "string",
-            "enum": [
-              "CPO",
-              "CPC",
-              "CPM"
-            ],
+            "enum": ["CPO", "CPC", "CPM"],
             "description": "Способ оплаты:\n- `CPO` — оплата за заказ,\n- `CPC` — оплата за клик,\n- `CPM` — оплата за 1000 показов.\n"
           },
           "placement": {
@@ -2532,21 +2415,13 @@
       },
       "camptypeMarketplaceID": {
         "type": "string",
-        "enum": [
-          "MARKETPLACE_ID_RU",
-          "MARKETPLACE_ID_KZ",
-          "MARKETPLACE_ID_BY"
-        ],
+        "enum": ["MARKETPLACE_ID_RU", "MARKETPLACE_ID_KZ", "MARKETPLACE_ID_BY"],
         "description": "Страна витрины:\n- `MARKETPLACE_ID_RU` — Россия;\n- `MARKETPLACE_ID_KZ` — Казахстан;\n- `MARKETPLACE_ID_BY` — Белоруссия.\n"
       },
       "camptypeCampaignTypeRate": {
         "type": "string",
         "title": "string",
-        "enum": [
-          "CPO",
-          "CPC",
-          "CPC_TOP"
-        ],
+        "enum": ["CPO", "CPC", "CPC_TOP"],
         "description": "Тип минимальной ставки:\n- `CPO` — по кампании «Оплата за заказ»;\n- `CPC` — по поиску и рекомендациям;\n- `CPC_TOP` — по поиску.\n"
       },
       "extcampaignBidBySKURequest": {
@@ -2598,12 +2473,7 @@
       "extstatGroupBy": {
         "type": "string",
         "default": "NO_GROUP_BY",
-        "enum": [
-          "NO_GROUP_BY",
-          "DATE",
-          "START_OF_WEEK",
-          "START_OF_MONTH"
-        ],
+        "enum": ["NO_GROUP_BY", "DATE", "START_OF_WEEK", "START_OF_MONTH"],
         "description": "Тип группировки по времени:\n- `DATE` — группировка по дате (по дням);\n- `START_OF_WEEK` — группировка по неделям;\n- `START_OF_MONTH` — группировка по месяцам.\n"
       },
       "extstatStatisticsRequest": {
@@ -2641,9 +2511,7 @@
           }
         },
         "description": "Структура исходного запроса.",
-        "required": [
-          "campaigns"
-        ]
+        "required": ["campaigns"]
       },
       "extstatStatisticsRequestID": {
         "type": "object",
@@ -2683,19 +2551,12 @@
           }
         },
         "description": "Структура исходного запроса.",
-        "required": [
-          "campaigns"
-        ]
+        "required": ["campaigns"]
       },
       "extstatStatisticsRequestState": {
         "type": "string",
         "default": "NOT_STARTED",
-        "enum": [
-          "NOT_STARTED",
-          "IN_PROGRESS",
-          "ERROR",
-          "OK"
-        ],
+        "enum": ["NOT_STARTED", "IN_PROGRESS", "ERROR", "OK"],
         "description": "Текущее состояние запроса:\n- `NOT_STARTED` — запрос ожидает выполнения;\n- `IN_PROGRESS` — запрос выполняется в данный момент;\n- `ERROR` — выполнение запроса завершилось ошибкой;\n- `OK` — запрос успешно выполнен.\n"
       },
       "extstatStatisticsResponse": {
@@ -2732,12 +2593,7 @@
           "kind": {
             "type": "string",
             "default": "STATS",
-            "enum": [
-              "STATS",
-              "SEARCH_PHRASES",
-              "ATTRIBUTION",
-              "VIDEO"
-            ],
+            "enum": ["STATS", "SEARCH_PHRASES", "ATTRIBUTION", "VIDEO"],
             "description": "Тип запрашиваемого отчёта:\n- `STATS` — отчёт по кампании;\n- `SEARCH_PHRASES` — отчёт по поисковым фразам и по категории товаров;\n- `ATTRIBUTION` — отчёт по заказам для оплаты за заказ;\n- `VIDEO` — отчёт по показам видеобаннера.\n"
           }
         },
@@ -2818,13 +2674,7 @@
         "type": "string",
         "title": "string",
         "default": "NO_AUTO_STRATEGY",
-        "enum": [
-          "MAX_CLICKS",
-          "TOP_MAX_CLICKS",
-          "TARGET_BIDS",
-          "TAKEOVER",
-          "NO_AUTO_STRATEGY"
-        ],
+        "enum": ["MAX_CLICKS", "TOP_MAX_CLICKS", "TARGET_BIDS", "TAKEOVER", "NO_AUTO_STRATEGY"],
         "description": "Автостратегия, которая будет использоваться для кампании:\n- `MAX_CLICKS` — максимум кликов для Поиска и рекомендаций;\n- `TOP_MAX_CLICKS` — максимум кликов для Поиска;\n- `TARGET_BIDS` — средняя стоимость клика для Поиска и рекомендаций;\n- `TAKEOVER` — спецразмещение для Поиска;\n- `NO_AUTO_STRATEGY` — не использовать автостратегию.\n"
       },
       "extcampaignCreateProductCampaignRequestV2CPC": {
@@ -2872,9 +2722,7 @@
             }
           }
         },
-        "required": [
-          "placement"
-        ]
+        "required": ["placement"]
       },
       "extcampaignCampaignID": {
         "type": "object",
@@ -2890,12 +2738,7 @@
         "type": "string",
         "title": "string",
         "default": "NO_AUTO_STRATEGY",
-        "enum": [
-          "MAX_CLICKS",
-          "TOP_MAX_CLICKS",
-          "TARGET_BIDS",
-          "NO_AUTO_STRATEGY"
-        ],
+        "enum": ["MAX_CLICKS", "TOP_MAX_CLICKS", "TARGET_BIDS", "NO_AUTO_STRATEGY"],
         "description": "Автостратегия, которая будет использоваться для кампании:\n- `MAX_CLICKS` — максимум кликов для Поиска и рекомендаций;\n- `TOP_MAX_CLICKS` — максимум кликов для Поиска;\n- `TARGET_BIDS` — средняя стоимость клика для Поиска;\n- `NO_AUTO_STRATEGY` — не использовать автостратегию.\n"
       },
       "advcamptypePlacement": {
@@ -2978,10 +2821,7 @@
         "title": "string",
         "description": "Тип минимального бюджета:\n- `DYNAMIC_BUDGET_REQUIRED` — обязательный;\n- `DYNAMIC_BUDGET_RECOMMENDED` — рекомендованный.\n",
         "default": "DYNAMIC_BUDGET_REQUIRED",
-        "enum": [
-          "DYNAMIC_BUDGET_REQUIRED",
-          "DYNAMIC_BUDGET_RECOMMENDED"
-        ]
+        "enum": ["DYNAMIC_BUDGET_REQUIRED", "DYNAMIC_BUDGET_RECOMMENDED"]
       },
       "extcampaignCalculateDynamicBudgetResponse": {
         "type": "object",
@@ -3080,13 +2920,7 @@
           "productAutopilotStrategy": {
             "type": "string",
             "default": "NO_AUTO_STRATEGY",
-            "enum": [
-              "MAX_VIEWS",
-              "MAX_CLICKS",
-              "TOP_MAX_CLICKS",
-              "TAKEOVER",
-              "NO_AUTO_STRATEGY"
-            ],
+            "enum": ["MAX_VIEWS", "MAX_CLICKS", "TOP_MAX_CLICKS", "TAKEOVER", "NO_AUTO_STRATEGY"],
             "description": "Автостратегия, которая используется для кампании:\n  - `MAX_VIEWS` — максимальное количество показов;\n  - `MAX_CLICKS` — максимальное количество кликов для Поиска и рекомендаций;\n  - `TOP_MAX_CLICKS` — максимальное количество кликов для Поиска;\n  - `TAKEOVER` — спецразмещение для Поиска;\n  - `NO_AUTO_STRATEGY` — автостратегия не используется.\n"
           },
           "autopilot": {
@@ -3105,10 +2939,7 @@
           "productCampaignMode": {
             "type": "string",
             "default": "PRODUCT_CAMPAIGN_MODE_AUTO",
-            "enum": [
-              "PRODUCT_CAMPAIGN_MODE_AUTO",
-              "PRODUCT_CAMPAIGN_MODE_MANUAL"
-            ],
+            "enum": ["PRODUCT_CAMPAIGN_MODE_AUTO", "PRODUCT_CAMPAIGN_MODE_MANUAL"],
             "description": "Режим создания и управления товарной рекламной кампанией:\n- `PRODUCT_CAMPAIGN_MODE_AUTO` — автоматически;\n- `PRODUCT_CAMPAIGN_MODE_MANUAL` — вручную.\n"
           },
           "autoIncrease": {
@@ -3202,10 +3033,7 @@
             "description": "Ставка за 1 клик (CPC).\n"
           }
         },
-        "required": [
-          "sku",
-          "bid"
-        ]
+        "required": ["sku", "bid"]
       },
       "extcampaignUpdateProductsRequest": {
         "type": "object",
@@ -3700,9 +3528,7 @@
             }
           }
         },
-        "required": [
-          "skus"
-        ]
+        "required": ["skus"]
       },
       "carrotsCarrotError": {
         "type": "string",
@@ -3754,9 +3580,7 @@
             }
           }
         },
-        "required": [
-          "skus"
-        ]
+        "required": ["skus"]
       },
       "extcampaignBatchDisableCarrotsResponseInfo": {
         "type": "object",
@@ -3797,10 +3621,7 @@
             "description": "Конец отчётного периода.\n\nДата должна быть позднее `dateFrom` не больше чем на 3 месяца. Если дата позднее трёх месяцев, \nотчёт сформируется за 3 месяца с даты, указанной в `dateFrom`.\n"
           },
           "type": {
-            "enum": [
-              "TRAFFIC_SOURCES",
-              "ORDERS"
-            ],
+            "enum": ["TRAFFIC_SOURCES", "ORDERS"],
             "type": "string",
             "description": "Тип отчёта:\n- `TRAFFIC_SOURCES` — отчёт по источникам трафика.\n- `ORDERS` — отчёт по заказам.\n"
           }
@@ -3832,14 +3653,7 @@
           },
           "state": {
             "default": "NOT_STARTED",
-            "enum": [
-              "NOT_STARTED",
-              "IN_PROGRESS",
-              "OK",
-              "ERROR",
-              "TIMEOUT",
-              "CANCEL"
-            ],
+            "enum": ["NOT_STARTED", "IN_PROGRESS", "OK", "ERROR", "TIMEOUT", "CANCEL"],
             "description": "Статус формирования отчёта:\n- `NOT_STARTED` — ещё не началось. \n- `IN_PROGRESS` — в процессе. \n- `CANCEL` — отменено.\n- `OK` — отчёт сформирован.\n- `ERROR` — произошла ошибка.\n- `TIMEOUT` — время ожидания истекло.\n"
           },
           "updatedAt": {

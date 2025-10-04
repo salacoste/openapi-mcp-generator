@@ -395,9 +395,9 @@ See [Testing Guide](./docs/testing.md) for details.
 
 ### Prerequisites
 
-- Node.js 18+
-- npm 8+
-- TypeScript 5.3+
+- **Node.js**: 20.11.0 LTS (minimum ≥18.0.0)
+- **pnpm**: 8.15.1 or higher
+- **TypeScript**: 5.3.3
 
 ### Setup
 
@@ -407,59 +407,38 @@ git clone https://github.com/your-org/openapi-to-mcp.git
 cd openapi-to-mcp
 
 # Install dependencies
-npm install
+pnpm install
 
-# Build packages
-npm run build
+# Build all packages
+pnpm build
 
 # Run tests
-npm test
+pnpm test
 
-# Link CLI for local development
-npm link
-openapi-to-mcp --version
+# Run linting
+pnpm lint
+
+# Format code
+pnpm format
 ```
 
-### Project Structure
+### Monorepo Structure
 
 ```
-packages/
-├── cli/                 # CLI package
-│   ├── src/
-│   │   ├── commands/
-│   │   │   ├── generate.ts
-│   │   │   ├── validate.ts
-│   │   │   └── init.ts
-│   │   └── index.ts
-│   └── package.json
-│
-├── parser/              # Parser package
-│   ├── src/
-│   │   ├── parser.ts
-│   │   ├── ref-resolver.ts
-│   │   ├── validators.ts
-│   │   └── errors.ts
-│   └── package.json
-│
-├── generator/           # Generator package
-│   ├── src/
-│   │   ├── generators/
-│   │   │   ├── type-generator.ts
-│   │   │   ├── tool-generator.ts
-│   │   │   ├── client-generator.ts
-│   │   │   └── server-generator.ts
-│   │   └── index.ts
-│   └── package.json
-│
-└── shared/              # Shared utilities
-    ├── src/
-    │   ├── types.ts
-    │   ├── utils/
-    │   │   ├── naming.ts
-    │   │   ├── type-mapping.ts
-    │   │   └── validation.ts
-    │   └── index.ts
-    └── package.json
+openapi-to-mcp/
+├── packages/
+│   ├── cli/              # Command-line interface
+│   ├── parser/           # OpenAPI 3.0 parsing
+│   ├── generator/        # Code generation engine
+│   └── templates/        # Boilerplate templates
+├── examples/             # Real-world test cases
+├── tests/                # Cross-package integration tests
+├── docs/                 # Architecture + API docs
+├── scripts/              # Build and utility scripts
+├── pnpm-workspace.yaml   # pnpm workspace configuration
+├── package.json          # Root package configuration
+├── tsconfig.json         # Base TypeScript configuration
+└── README.md             # This file
 ```
 
 ### Development Workflow
