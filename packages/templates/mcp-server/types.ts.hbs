@@ -1,0 +1,59 @@
+/**
+ * TypeScript type definitions for {{apiName}}
+ * Generated from OpenAPI specification
+ * @generated {{generatedAt}}
+ */
+
+{{#each schemas}}
+{{#if description}}
+/**
+ * {{escapeComment description}}
+ */
+{{/if}}
+export interface {{pascalName}} {
+  {{#each properties}}
+  {{#if description}}
+  /**
+   * {{escapeComment description}}
+   */
+  {{/if}}
+  {{camelName}}{{#unless required}}?{{/unless}}: {{tsType}};
+  {{/each}}
+}
+
+{{/each}}
+
+{{#each operations}}
+{{#if hasParameters}}
+/**
+ * Parameters for {{camelCase operationId}}
+ */
+export interface {{PascalCase operationId}}Params {
+  {{#each parameters}}
+  {{#if description}}
+  /** {{escapeComment description}} */
+  {{/if}}
+  {{camelName}}{{#unless required}}?{{/unless}}: {{tsType}};
+  {{/each}}
+}
+
+{{/if}}
+{{#if hasRequestBody}}
+/**
+ * Request body for {{camelCase operationId}}
+ */
+export interface {{PascalCase operationId}}Request {
+  {{#if requestBody.schema.properties}}
+  {{#each requestBody.schema.properties}}
+  {{#if description}}
+  /** {{escapeComment description}} */
+  {{/if}}
+  {{camelName}}{{#unless required}}?{{/unless}}: {{tsType}};
+  {{/each}}
+  {{else}}
+  [key: string]: unknown;
+  {{/if}}
+}
+
+{{/if}}
+{{/each}}

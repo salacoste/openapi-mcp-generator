@@ -2,6 +2,8 @@
 
 Comprehensive documentation for the Ozon Performance SDK project.
 
+USE CONTEXT7 MCP SERVER for any code related operations. Always check the best practice when you either implement or evaluate code related activity.
+
 ---
 
 ## 📚 Documentation Index

@@ -1,0 +1,261 @@
+/**
+ * HTTP Client for {{apiName}} API
+ * Base URL: {{primaryServer.url}}
+ * Generated at: {{generatedAt}}
+ * @generated Do not edit manually
+ */
+
+import axios, {
+  AxiosInstance,
+  AxiosRequestConfig,
+  AxiosError,
+  AxiosResponse,
+} from 'axios';
+
+/**
+ * Client configuration options
+ */
+export interface ClientConfig {
+  /** Base URL for API requests */
+  baseURL?: string;
+  /** Request timeout in milliseconds (default: 30000) */
+  timeout?: number;
+  /** Default headers for all requests */
+  headers?: Record<string, string>;
+  /** Number of retry attempts for failed requests (default: 3) */
+  retryCount?: number;
+  /** Initial retry delay in milliseconds (default: 1000) */
+  retryDelay?: number;
+  /** Enable debug logging (default: false) */
+  debug?: boolean;
+}
+
+/**
+ * API Error with additional context
+ */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly statusCode?: number,
+    public readonly response?: unknown,
+    public readonly request?: unknown
+  ) {
+    super(message);
+    this.name = 'ApiError';
+    Error.captureStackTrace(this, this.constructor);
+  }
+}
+
+/**
+ * HTTP Client for API communication
+ */
+export class ApiClient {
+  private client: AxiosInstance;
+  private config: Required<ClientConfig>;
+
+  constructor(config: ClientConfig = {}) {
+    // Set configuration with defaults
+    this.config = {
+      baseURL: config.baseURL || process.env.API_BASE_URL || '{{primaryServer.url}}',
+      timeout: config.timeout || parseInt(process.env.API_TIMEOUT || '30000', 10),
+      headers: config.headers || {},
+      retryCount: config.retryCount || 3,
+      retryDelay: config.retryDelay || 1000,
+      debug: config.debug || process.env.DEBUG === 'true',
+    };
+
+    // Create Axios instance
+    this.client = axios.create({
+      baseURL: this.config.baseURL,
+      timeout: this.config.timeout,
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.config.headers,
+      },
+    });
+
+    // Setup interceptors
+    this.setupInterceptors();
+  }
+
+  /**
+   * Setup request and response interceptors
+   */
+  private setupInterceptors(): void {
+    // Request interceptor
+    this.client.interceptors.request.use(
+      (config) => {
+        if (this.config.debug) {
+          const method = config.method?.toUpperCase() || 'UNKNOWN';
+          const url = config.url || 'unknown';
+          // eslint-disable-next-line no-console
+          console.log(`[HTTP] ${method} ${url}`);
+        }
+        return config;
+      },
+      (error) => {
+        return Promise.reject(this.handleError(error));
+      }
+    );
+
+    // Response interceptor
+    this.client.interceptors.response.use(
+      (response) => {
+        if (this.config.debug) {
+          const status = response.status;
+          const url = response.config.url || 'unknown';
+          // eslint-disable-next-line no-console
+          console.log(`[HTTP] ${status} ${url}`);
+        }
+        return response;
+      },
+      async (error) => {
+        return this.handleErrorWithRetry(error);
+      }
+    );
+  }
+
+  /**
+   * Handle error with retry logic
+   */
+  private async handleErrorWithRetry(
+    error: AxiosError,
+    retryCount = 0
+  ): Promise<AxiosResponse> {
+    const shouldRetry = this.shouldRetry(error, retryCount);
+
+    if (shouldRetry) {
+      const delay = this.calculateRetryDelay(retryCount);
+      await this.sleep(delay);
+
+      if (this.config.debug) {
+        // eslint-disable-next-line no-console
+        console.log(`[HTTP] Retry ${retryCount + 1}/${this.config.retryCount}`);
+      }
+
+      try {
+        if (error.config) {
+          return await this.client.request(error.config);
+        }
+      } catch (retryError) {
+        return this.handleErrorWithRetry(retryError as AxiosError, retryCount + 1);
+      }
+    }
+
+    throw this.handleError(error);
+  }
+
+  /**
+   * Determine if request should be retried
+   */
+  private shouldRetry(error: AxiosError, retryCount: number): boolean {
+    if (retryCount >= this.config.retryCount) {
+      return false;
+    }
+
+    // Retry on 5xx errors
+    if (error.response?.status && error.response.status >= 500) {
+      return true;
+    }
+
+    // Retry on network errors (but not timeouts)
+    if (!error.response && error.code !== 'ECONNABORTED') {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Calculate retry delay with exponential backoff
+   */
+  private calculateRetryDelay(retryCount: number): number {
+    const delay = this.config.retryDelay * Math.pow(2, retryCount);
+    return Math.min(delay, 30000); // Cap at 30 seconds
+  }
+
+  /**
+   * Sleep for specified milliseconds
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Handle and transform errors
+   */
+  private handleError(error: AxiosError): ApiError {
+    if (error.response) {
+      // Server responded with error status
+      return new ApiError(
+        error.message || 'API request failed',
+        error.response.status,
+        error.response.data,
+        error.config
+      );
+    } else if (error.request) {
+      // Request made but no response received
+      return new ApiError(
+        'No response from server',
+        undefined,
+        undefined,
+        error.config
+      );
+    } else {
+      // Error setting up request
+      return new ApiError(error.message || 'Request setup failed');
+    }
+  }
+
+  /**
+   * Generic GET request
+   */
+  async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.client.get<T>(url, config);
+    return response.data;
+  }
+
+  /**
+   * Generic POST request
+   */
+  async post<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.client.post<T>(url, data, config);
+    return response.data;
+  }
+
+  /**
+   * Generic PUT request
+   */
+  async put<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.client.put<T>(url, data, config);
+    return response.data;
+  }
+
+  /**
+   * Generic PATCH request
+   */
+  async patch<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.client.patch<T>(url, data, config);
+    return response.data;
+  }
+
+  /**
+   * Generic DELETE request
+   */
+  async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.client.delete<T>(url, config);
+    return response.data;
+  }
+}
+
+/**
+ * Create and export HTTP client instance
+ */
+export function createHttpClient(config?: ClientConfig): ApiClient {
+  return new ApiClient(config);
+}
+
+/**
+ * Default HTTP client instance
+ */
+export const httpClient = createHttpClient();

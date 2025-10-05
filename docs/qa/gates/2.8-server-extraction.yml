@@ -1,0 +1,52 @@
+schema: 1
+story: "2.8"
+story_title: "Server URL Extraction and Base Path Handling"
+gate: PASS
+status_reason: "Exceptional implementation with all 44 unit tests passing. Complete server extraction system with URL parsing, variable resolution, base path normalization, environment inference, and multi-server support. All 17 ACs fully implemented. Completes Epic 2 parser pipeline."
+reviewer: "Quinn (Test Architect)"
+updated: "2025-10-04T21:30:00Z"
+
+waiver: { active: false }
+
+top_issues: []
+
+risk_summary:
+  totals: { critical: 0, high: 0, medium: 0, low: 0 }
+  recommendations:
+    must_fix: []
+    monitor: []
+
+# Quality scoring (exceptional - all requirements exceeded)
+quality_score: 98
+
+# Evidence from review
+evidence:
+  tests_reviewed: 44  # Unit tests
+  risks_identified: 0
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+    ac_gaps: []
+
+# NFR validation results
+nfr_validation:
+  performance:
+    status: PASS
+    notes: "Extraction completes in <10ms (well under 500ms requirement). Test execution 6ms for 44 tests."
+  reliability:
+    status: PASS
+    notes: "Graceful handling of missing servers with default fallback. Invalid URL error handling. Variable resolution with defaults."
+  maintainability:
+    status: PASS
+    notes: "Well-structured code (server-extractor.ts). Comprehensive TypeScript types (ServerMetadata, ServerExtractionResult)."
+  usability:
+    status: PASS
+    notes: "Clear server selection strategy (priority-based). Environment variable mapping (API_ prefix). Multi-server support."
+
+# Recommendations
+recommendations:
+  immediate: []
+  future:
+    - action: "Consider adding server health check functionality for runtime validation (post-MVP)"
+      refs: ["packages/parser/src/server-extractor.ts"]
+    - action: "Add support for server-level security schemes override (post-MVP)"
+      refs: ["packages/parser/src/server-extractor.ts"]

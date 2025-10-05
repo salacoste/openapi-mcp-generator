@@ -377,16 +377,19 @@ npm run test:e2e
 
 ### Test Coverage
 
-**Requirements**:
+**Target Requirements**:
 - Lines: 80%
 - Functions: 80%
 - Branches: 75%
 - Statements: 80%
 
-**Current Coverage** (as of 2025-01-02):
-- Parser: 85% lines, 85% functions
-- Generator: 82% lines, 80% functions
-- Shared: 90% lines, 90% functions
+**Current Baseline** (as of 2025-01-04):
+- Overall: 66% lines, 81% functions, 83% branches, 66% statements
+- CLI: 14 passing tests
+- Generator: 20 passing tests
+- Coverage enforced in CI to prevent regression
+
+**Note**: Current thresholds set to 65% (lines/statements) and 70% (branches) to prevent regression. Goal is to reach 80% coverage for all new code by Epic 2 completion.
 
 See [Testing Guide](./docs/testing.md) for details.
 

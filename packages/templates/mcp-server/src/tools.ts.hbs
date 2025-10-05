@@ -1,0 +1,84 @@
+/**
+ * MCP Tool Definitions for {{apiName}}
+ * Generated from OpenAPI specification
+ * {{#if apiDescription}}
+ * {{apiDescription}}
+ * {{/if}}
+ * @generated {{generatedAt}}
+ * @version {{apiVersion}}
+ */
+
+import type { Tool } from '@modelcontextprotocol/sdk/types.js';
+import type { ApiClient } from './http-client.js';
+
+/**
+ * MCP Tool Definition with execution function
+ */
+export interface ToolDefinition extends Tool {
+  execute: (client: ApiClient, args: Record<string, unknown>) => Promise<unknown>;
+}
+
+/**
+ * All available MCP tools
+ */
+export const tools: ToolDefinition[] = [
+{{#each tools}}
+  {
+    name: '{{name}}',
+    description: '{{escapeComment description}}',
+    inputSchema: {
+      type: 'object',
+      properties: {
+{{#each inputSchema.properties}}
+        {{@key}}: {
+          type: '{{type}}',
+{{#if description}}
+          description: '{{escapeComment description}}',
+{{/if}}
+{{#if format}}
+          format: '{{format}}',
+{{/if}}
+{{#if enum}}
+          enum: [{{{join enum "', '"}}}],
+{{/if}}
+{{#if default}}
+          default: {{{json default}}},
+{{/if}}
+        },
+{{/each}}
+      },
+{{#if inputSchema.required}}
+      required: [{{{join inputSchema.required "', '"}}}],
+{{/if}}
+      additionalProperties: false,
+    },
+    execute: async (client: ApiClient, args: Record<string, unknown>) => {
+{{{executeCode}}}
+    },
+  },
+{{/each}}
+];
+
+/**
+ * Get tool by name
+ */
+export function getToolByName(name: string): ToolDefinition | undefined {
+  return tools.find((tool) => tool.name === name);
+}
+
+/**
+ * Get tools by tag
+ */
+export function getToolsByTag(tag: string): ToolDefinition[] {
+  return tools.filter((tool) => {
+    const toolTags = (tool as ToolDefinition & { tags?: string[] }).tags;
+    return toolTags?.includes(tag);
+  });
+}
+
+/**
+ * Get all tool names
+ */
+export function getToolNames(): string[] {
+  return tools.map((tool) => tool.name);
+}

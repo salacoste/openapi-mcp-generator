@@ -1,0 +1,211 @@
+#!/usr/bin/env node
+
+/**
+ * {{apiName}} MCP Server
+ * Generated from OpenAPI specification
+ * {{#if apiDescription}}
+ * {{apiDescription}}
+ * {{/if}}
+ * @generated {{generatedAt}}
+ * @version {{apiVersion}}
+ */
+
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import {
+  ListToolsRequestSchema,
+  CallToolRequestSchema,
+  Tool,
+} from '@modelcontextprotocol/sdk/types.js';
+import * as dotenv from 'dotenv';
+{{#if hasAuthentication}}
+import { createHttpClient } from './http-client.js';
+{{/if}}
+
+// Load environment variables
+dotenv.config();
+
+// Debug logging utility
+const DEBUG = process.env.DEBUG === 'true';
+
+function log(message: string, ...args: unknown[]): void {
+  if (DEBUG) {
+    console.error(`[${new Date().toISOString()}] ${message}`, ...args);
+  }
+}
+
+function logError(message: string, error: unknown): void {
+  console.error(`[${new Date().toISOString()}] ERROR: ${message}`, error);
+}
+
+/**
+ * Create and configure the MCP server
+ */
+async function main() {
+  log('Initializing {{apiName}} MCP Server...');
+
+  // Create server instance
+  const server = new Server(
+    {
+      name: '{{kebabCase apiName}}-mcp',
+      version: '{{apiVersion}}',
+    },
+    {
+      capabilities: {
+        tools: {},
+      },
+    }
+  );
+
+  {{#if hasAuthentication}}
+  // Initialize HTTP client with authentication
+  const httpClient = createHttpClient({
+    baseURL: process.env.API_BASE_URL || '{{primaryServer.url}}',
+  });
+  log('HTTP client initialized with base URL:', process.env.API_BASE_URL || '{{primaryServer.url}}');
+  {{/if}}
+
+  // Register all API tools
+  server.setRequestHandler(ListToolsRequestSchema, async () => {
+    log('ListTools request received');
+    return {
+      tools: [
+        {{#each operations}}
+        {
+          name: '{{camelCase operationId}}',
+          description: '{{#if summary}}{{escapeComment summary}}{{else}}{{escapeComment description}}{{/if}}',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              {{#if hasParameters}}
+              {{#each parameters}}
+              {{camelName}}: {
+                type: '{{type}}',
+                description: '{{#if description}}{{escapeComment description}}{{/if}}',
+                {{#if required}}
+                required: true,
+                {{/if}}
+              },
+              {{/each}}
+              {{/if}}
+              {{#if hasRequestBody}}
+              body: {
+                type: 'object',
+                description: '{{#if requestBody.description}}{{escapeComment requestBody.description}}{{/if}}',
+                {{#if requestBody.required}}
+                required: true,
+                {{/if}}
+              },
+              {{/if}}
+            },
+            {{#if (or hasParameters hasRequestBody)}}
+            required: [
+              {{#each parameters}}
+              {{#if required}}
+              '{{camelName}}',
+              {{/if}}
+              {{/each}}
+              {{#if requestBody.required}}
+              'body',
+              {{/if}}
+            ],
+            {{/if}}
+          },
+        } as Tool,
+        {{/each}}
+      ],
+    };
+  });
+
+  // Handle tool calls
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    const { name, arguments: args } = request.params;
+    const startTime = Date.now();
+
+    log(`CallTool request: ${name}`, args);
+
+    try {
+      switch (name) {
+        {{#each operations}}
+        case '{{camelCase operationId}}': {
+          {{#if hasAuthentication}}
+          // Make authenticated API request
+          const response = await httpClient.{{method}}(
+            '{{path}}'{{#if hasRequestBody}},
+            args.body{{/if}}{{#if hasQueryParams}},
+            { params: args }{{/if}}
+          );
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(response.data, null, 2),
+              },
+            ],
+          };
+          {{else}}
+          // Placeholder: implement API call logic
+          return {
+            content: [
+              {
+                type: 'text',
+                text: 'Operation {{camelCase operationId}} called successfully',
+              },
+            ],
+          };
+          {{/if}}
+        }
+        {{/each}}
+
+        default:
+          throw new Error(`Unknown tool: ${name}`);
+      }
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      logError(`Tool execution failed for ${name} (${duration}ms)`, error);
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    } finally {
+      const duration = Date.now() - startTime;
+      log(`Tool execution completed: ${name} (${duration}ms)`);
+    }
+  });
+
+  // Connect to stdio transport
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+
+  log('Connected to stdio transport');
+  console.error('{{apiName}} MCP Server started successfully');
+
+  // Graceful shutdown
+  const shutdown = async () => {
+    log('Shutting down server...');
+    try {
+      await server.close();
+      log('Server closed successfully');
+      process.exit(0);
+    } catch (error) {
+      logError('Error during shutdown', error);
+      process.exit(1);
+    }
+  };
+
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
+}
+
+// Run the server
+main().catch((error) => {
+  logError('Fatal server error', error);
+  process.exit(1);
+});

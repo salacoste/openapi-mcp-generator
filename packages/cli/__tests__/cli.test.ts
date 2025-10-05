@@ -3,10 +3,10 @@
  * Tests command parsing, flag validation, and error handling
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { Command } from 'commander';
 import { registerGenerateCommand } from '../src/commands/generate.js';
-import { ValidationError, CLIError, handleError } from '../src/utils/errors.js';
+import { ValidationError, CLIError } from '../src/errors/index.js';
 
 describe('CLI Error Classes', () => {
   it('should create CLIError with default exit code', () => {
@@ -35,25 +35,25 @@ describe('Generate Command', () => {
   it('should register generate command', () => {
     const commands = program.commands;
     expect(commands).toHaveLength(1);
-    expect(commands[0].name()).toBe('generate');
+    expect(commands[0]?.name()).toBe('generate');
   });
 
   it('should have correct command description', () => {
     const generateCmd = program.commands[0];
-    expect(generateCmd.description()).toBe('Generate an MCP server from an OpenAPI specification');
+    expect(generateCmd?.description()).toBe('Generate an MCP server from an OpenAPI specification');
   });
 
   it('should define required openapi-path argument', () => {
     const generateCmd = program.commands[0];
-    const args = generateCmd.registeredArguments;
+    const args = generateCmd?.registeredArguments;
     expect(args).toHaveLength(1);
-    expect(args[0].name()).toBe('openapi-path');
-    expect(args[0].required).toBe(true);
+    expect(args?.[0]?.name()).toBe('openapi-path');
+    expect(args?.[0]?.required).toBe(true);
   });
 
   it('should define output option with default value', () => {
     const generateCmd = program.commands[0];
-    const outputOption = generateCmd.options.find((opt) => opt.long === '--output');
+    const outputOption = generateCmd?.options.find((opt) => opt.long === '--output');
     expect(outputOption).toBeDefined();
     expect(outputOption?.short).toBe('-o');
     expect(outputOption?.defaultValue).toBe('./mcp-server');
@@ -61,28 +61,28 @@ describe('Generate Command', () => {
 
   it('should define format option', () => {
     const generateCmd = program.commands[0];
-    const formatOption = generateCmd.options.find((opt) => opt.long === '--format');
+    const formatOption = generateCmd?.options.find((opt) => opt.long === '--format');
     expect(formatOption).toBeDefined();
     expect(formatOption?.short).toBe('-f');
   });
 
   it('should define verbose boolean flag', () => {
     const generateCmd = program.commands[0];
-    const verboseOption = generateCmd.options.find((opt) => opt.long === '--verbose');
+    const verboseOption = generateCmd?.options.find((opt) => opt.long === '--verbose');
     expect(verboseOption).toBeDefined();
     expect(verboseOption?.short).toBe('-v');
   });
 
   it('should define auth-type option', () => {
     const generateCmd = program.commands[0];
-    const authOption = generateCmd.options.find((opt) => opt.long === '--auth-type');
+    const authOption = generateCmd?.options.find((opt) => opt.long === '--auth-type');
     expect(authOption).toBeDefined();
     expect(authOption?.short).toBe('-a');
   });
 
   it('should define force option', () => {
     const generateCmd = program.commands[0];
-    const forceOption = generateCmd.options.find((opt) => opt.long === '--force');
+    const forceOption = generateCmd?.options.find((opt) => opt.long === '--force');
     expect(forceOption).toBeDefined();
   });
 });
@@ -105,32 +105,5 @@ describe('CLI Version and Help', () => {
   });
 });
 
-describe('Error Handling', () => {
-  it('should handle ValidationError with exit code 1', () => {
-    const mockExit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
-    const mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-    const error = new ValidationError('Test validation error');
-    handleError(error);
-
-    expect(mockConsoleError).toHaveBeenCalled();
-    expect(mockExit).toHaveBeenCalledWith(1);
-
-    mockExit.mockRestore();
-    mockConsoleError.mockRestore();
-  });
-
-  it('should handle generic Error with exit code 2', () => {
-    const mockExit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
-    const mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-    const error = new Error('Generic error');
-    handleError(error);
-
-    expect(mockConsoleError).toHaveBeenCalled();
-    expect(mockExit).toHaveBeenCalledWith(2);
-
-    mockExit.mockRestore();
-    mockConsoleError.mockRestore();
-  });
-});
+// Error handling tests moved to __tests__/errors/
+// See: exit-codes.test.ts and formatter.test.ts

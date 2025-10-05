@@ -17,4 +17,10 @@
     "declarationMap": true,
     "sourceMap": true,
   },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "packages/templates/hello-world",
+    "packages/templates/mcp-server"
+  ]
 }

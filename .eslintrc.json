@@ -17,5 +17,12 @@
     "@typescript-eslint/explicit-function-return-type": "warn",
     "no-console": "error"
   },
-  "ignorePatterns": ["dist/", "node_modules/", "*.config.js", "*.config.ts"]
+  "ignorePatterns": [
+    "dist/",
+    "node_modules/",
+    "*.config.js",
+    "*.config.ts",
+    "packages/templates/hello-world/**",
+    "packages/templates/mcp-server/**"
+  ]
 }

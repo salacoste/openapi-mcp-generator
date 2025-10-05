@@ -58,5 +58,15 @@ jobs:
       - name: Run tests
         run: pnpm test
 
+      - name: Run tests with coverage
+        run: pnpm test:coverage
+
+      - name: Upload coverage reports to Codecov
+        if: matrix.os == 'ubuntu-latest' && matrix.node-version == '20'
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage/lcov.info
+          fail_ci_if_error: false
+
       - name: Build packages
         run: pnpm build
