@@ -6,6 +6,24 @@ import { describe, it, expect } from 'vitest';
 import { generateResponseProcessing, generateErrorHandling } from '../src/response-processor.js';
 import type { OperationMetadata } from '@openapi-to-mcp/parser';
 
+// Helper to create mock operation with required fields
+function createMockOperation(overrides: Partial<OperationMetadata>): OperationMetadata {
+  return {
+    operationId: 'testOperation',
+    path: '/test',
+    method: 'get',
+    summary: 'Test operation',
+    description: 'Test description',
+    pathParameters: [],
+    queryParameters: [],
+    headerParameters: [],
+    tags: [],
+    deprecated: false,
+    responses: [],
+    ...overrides,
+  };
+}
+
 describe('generateResponseProcessing', () => {
   describe('Success Response Handling (2xx)', () => {
     it('should generate type casting for 200 response with schema', () => {
@@ -33,7 +51,7 @@ describe('generateResponseProcessing', () => {
 
       expect(code).toContain('const typedData = response as UserResponse');
       expect(code).toContain('type: \'text\'');
-      expect(code).toContain('JSON.stringify(typedData, null, 2)');
+      expect(code).toContain('JSON.stringify(truncatedData, null, 2)');
     });
 
     it('should handle response without schema', () => {
@@ -143,7 +161,7 @@ describe('generateResponseProcessing', () => {
       const code = generateResponseProcessing(operation);
 
       expect(code).toContain('const typedData = response');
-      expect(code).toContain('JSON.stringify(typedData, null, 2)');
+      expect(code).toContain('JSON.stringify(truncatedData, null, 2)');
     });
 
     it('should use default response when no specific status codes', () => {
@@ -226,7 +244,7 @@ describe('generateResponseProcessing', () => {
       expect(code).toContain('return {');
       expect(code).toContain('content: [');
       expect(code).toContain('type: \'text\'');
-      expect(code).toContain('text: JSON.stringify(typedData, null, 2)');
+      expect(code).toContain('text: JSON.stringify(truncatedData, null, 2)');
       expect(code).toContain(']');
       expect(code).toContain('}');
     });
@@ -253,7 +271,7 @@ describe('generateResponseProcessing', () => {
 
       const code = generateResponseProcessing(operation);
 
-      expect(code).toContain('JSON.stringify(typedData, null, 2)');
+      expect(code).toContain('JSON.stringify(truncatedData, null, 2)');
     });
   });
 
@@ -330,6 +348,122 @@ describe('generateResponseProcessing', () => {
 
       expect(code).toContain('No schema defined');
       expect(code).toContain('const typedData = response');
+    });
+  });
+
+  describe('Null Handling (AC7)', () => {
+    it('should generate null/undefined normalization code', () => {
+      const operation: OperationMetadata = createMockOperation({
+        responses: [
+          {
+            statusCode: '200',
+            description: 'Success',
+            schemaName: 'UserResponse',
+          },
+        ],
+      });
+
+      const code = generateResponseProcessing(operation);
+
+      expect(code).toContain('normalizeNullValues');
+      expect(code).toContain('const normalizedData = normalizeNullValues(typedData)');
+      expect(code).toContain('function normalizeNullValues(data: unknown)');
+    });
+
+    it('should handle null and undefined values recursively', () => {
+      const operation: OperationMetadata = createMockOperation({
+        responses: [{ statusCode: '200', schemaName: 'Response' }],
+      });
+
+      const code = generateResponseProcessing(operation);
+
+      // Verify recursive handling for objects and arrays
+      expect(code).toContain('if (data === null || data === undefined)');
+      expect(code).toContain('if (Array.isArray(data))');
+      expect(code).toContain('if (typeof data === \'object\' && data !== null)');
+    });
+  });
+
+  describe('Array Truncation (AC8)', () => {
+    it('should generate array truncation code', () => {
+      const operation: OperationMetadata = createMockOperation({
+        responses: [
+          {
+            statusCode: '200',
+            description: 'Success',
+            schemaName: 'ItemList',
+          },
+        ],
+      });
+
+      const code = generateResponseProcessing(operation);
+
+      expect(code).toContain('truncateArrays');
+      expect(code).toContain('const truncatedData = truncateArrays(normalizedData, 100)');
+      expect(code).toContain('function truncateArrays(data: unknown, maxItems = 100)');
+    });
+
+    it('should truncate arrays exceeding maxItems limit', () => {
+      const operation: OperationMetadata = createMockOperation({
+        responses: [{ statusCode: '200', schemaName: 'Response' }],
+      });
+
+      const code = generateResponseProcessing(operation);
+
+      // Verify truncation logic
+      expect(code).toContain('if (data.length > maxItems)');
+      expect(code).toContain('data.slice(0, maxItems)');
+      expect(code).toContain('_truncated: true');
+      expect(code).toContain('_originalLength: data.length');
+      expect(code).toContain('_remainingItems: data.length - maxItems');
+    });
+
+    it('should add truncation metadata to truncated arrays', () => {
+      const operation: OperationMetadata = createMockOperation({
+        responses: [{ statusCode: '200', schemaName: 'Response' }],
+      });
+
+      const code = generateResponseProcessing(operation);
+
+      expect(code).toContain('_message: `Array truncated: showing ${maxItems} of ${data.length} items`');
+    });
+
+    it('should use truncatedData in MCP response formatting', () => {
+      const operation: OperationMetadata = createMockOperation({
+        responses: [{ statusCode: '200', schemaName: 'Response' }],
+      });
+
+      const code = generateResponseProcessing(operation);
+
+      expect(code).toContain('JSON.stringify(truncatedData, null, 2)');
+      expect(code).not.toContain('JSON.stringify(typedData, null, 2)');
+    });
+  });
+
+  describe('Performance Benchmarks (AC18)', () => {
+    it('should generate response processing code efficiently', () => {
+      const operation: OperationMetadata = createMockOperation({
+        responses: [
+          {
+            statusCode: '200',
+            description: 'Success',
+            schemaName: 'ComplexResponse',
+          },
+        ],
+      });
+
+      const iterations = 1000;
+      const startTime = performance.now();
+
+      for (let i = 0; i < iterations; i++) {
+        generateResponseProcessing(operation);
+      }
+
+      const endTime = performance.now();
+      const avgTime = (endTime - startTime) / iterations;
+
+      // Should be very fast (<1ms per operation)
+      expect(avgTime).toBeLessThan(1);
     });
   });
 });

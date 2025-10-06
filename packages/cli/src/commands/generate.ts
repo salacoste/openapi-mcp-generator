@@ -7,7 +7,12 @@ import { Command } from 'commander';
 import { existsSync, statSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { checkOutputDirectory, copyTemplate } from '@openapi-to-mcp/generator';
+import {
+  checkOutputDirectory,
+  copyTemplate,
+  analyzeSecurityRequirements,
+  formatSecurityGuidance,
+} from '@openapi-to-mcp/generator';
 import {
   loadOpenAPIDocument,
   validateOpenAPISchema,
@@ -240,6 +245,39 @@ Examples:
         }
 
         logger.debug(`Extracted ${schemeCount} security schemes`);
+
+        // Story 4.6: Analyze security requirements and generate guidance
+        if (schemeCount > 0) {
+          logger.info('Analyzing security requirements...');
+
+          // Convert security schemes to template data format
+          const securitySchemeData = Object.entries(securityResult.schemes).map(
+            ([name, scheme]) => ({
+              name,
+              type: scheme.type,
+              scheme: scheme.scheme,
+              bearerFormat: scheme.bearerFormat,
+              in: scheme.in,
+              paramName: scheme.paramName,
+              flows: scheme.flows,
+            })
+          );
+
+          // Analyze security requirements
+          const securityGuidance = analyzeSecurityRequirements(
+            securitySchemeData,
+            resolvedDocument.security || [],
+            securityResult.hasOperationSecurity
+          );
+
+          // Display security guidance to user
+          if (options.verbose || securityGuidance.unsupported.length > 0) {
+            // eslint-disable-next-line no-console
+            console.log('\n' + formatSecurityGuidance(securityGuidance));
+          }
+
+          logger.debug('Security guidance generated successfully');
+        }
 
         // Story 2.7: Extract tags
         logger.info('Extracting tags...');

@@ -10,7 +10,26 @@ import axios, {
   AxiosRequestConfig,
   AxiosError,
   AxiosResponse,
+  InternalAxiosRequestConfig,
 } from 'axios';
+{{#if hasMultipleSecurity}}
+import { applyMultiSchemeAuth, validateMultiSchemeConfig, type Operation } from './auth/multi-scheme.js';
+import type { ServerConfig } from './config.js';
+{{else}}
+{{#if (or hasApiKey hasBearerToken hasBasicAuth)}}
+import { createAuthInterceptor, createAuthErrorInterceptor } from './interceptors/auth.js';
+import type { ServerConfig } from './config.js';
+{{#if hasApiKey}}
+import { validateApiKeyConfig } from './auth/api-key.js';
+{{/if}}
+{{#if hasBearerToken}}
+import { validateBearerConfig } from './auth/bearer.js';
+{{/if}}
+{{#if hasBasicAuth}}
+import { validateBasicAuthConfig } from './auth/basic-auth.js';
+{{/if}}
+{{/if}}
+{{/if}}
 
 /**
  * Client configuration options
@@ -28,6 +47,10 @@ export interface ClientConfig {
   retryDelay?: number;
   /** Enable debug logging (default: false) */
   debug?: boolean;
+  {{#if (or hasApiKey hasBearerToken hasBasicAuth)}}
+  /** Server configuration for authentication */
+  serverConfig?: ServerConfig;
+  {{/if}}
 }
 
 /**
@@ -54,6 +77,43 @@ export class ApiClient {
   private config: Required<ClientConfig>;
 
   constructor(config: ClientConfig = {}) {
+    {{#if hasMultipleSecurity}}
+    // Validate multi-scheme authentication configuration if required
+    if (config.serverConfig) {
+      // Note: Validation will check that at least one security requirement can be satisfied
+      // Actual validation happens per-operation in the request interceptor
+      const globalSecurity = [
+        {{#each globalSecurity}}
+        {
+          {{#each this}}
+          "{{@key}}": [{{#each this}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}],
+          {{/each}}
+        },
+        {{/each}}
+      ];
+      validateMultiSchemeConfig(config.serverConfig, globalSecurity);
+    }
+    {{else}}
+    {{#if hasApiKey}}
+    // Validate API key configuration if required
+    if (config.serverConfig) {
+      validateApiKeyConfig(config.serverConfig);
+    }
+    {{/if}}
+    {{#if hasBearerToken}}
+    // Validate Bearer token configuration if required
+    if (config.serverConfig) {
+      validateBearerConfig(config.serverConfig);
+    }
+    {{/if}}
+    {{#if hasBasicAuth}}
+    // Validate Basic Auth configuration if required
+    if (config.serverConfig) {
+      validateBasicAuthConfig(config.serverConfig);
+    }
+    {{/if}}
+    {{/if}}
+
     // Set configuration with defaults
     this.config = {
       baseURL: config.baseURL || process.env.API_BASE_URL || '{{primaryServer.url}}',
@@ -62,6 +122,9 @@ export class ApiClient {
       retryCount: config.retryCount || 3,
       retryDelay: config.retryDelay || 1000,
       debug: config.debug || process.env.DEBUG === 'true',
+      {{#if (or hasApiKey hasBearerToken hasBasicAuth)}}
+      serverConfig: config.serverConfig,
+      {{/if}}
     };
 
     // Create Axios instance
@@ -82,9 +145,28 @@ export class ApiClient {
    * Setup request and response interceptors
    */
   private setupInterceptors(): void {
-    // Request interceptor
+    // Request interceptor for authentication
+    {{#if hasMultipleSecurity}}
     this.client.interceptors.request.use(
-      (config) => {
+      (config: InternalAxiosRequestConfig) => {
+        // Apply multi-scheme authentication if configured
+        if (this.config.serverConfig) {
+          // Extract operation metadata from config
+          // In real implementation, this would come from the MCP tool context
+          const operation: Operation = {
+            operationId: config.headers?.['X-Operation-ID'] as string || 'unknown',
+            path: config.url || '',
+            method: config.method || 'GET',
+            security: config.headers?.['X-Security-Requirements'] as any
+          };
+
+          // Remove temporary headers used for operation context
+          delete config.headers?.['X-Operation-ID'];
+          delete config.headers?.['X-Security-Requirements'];
+
+          config = applyMultiSchemeAuth(config, this.config.serverConfig, operation);
+        }
+
         if (this.config.debug) {
           const method = config.method?.toUpperCase() || 'UNKNOWN';
           const url = config.url || 'unknown';
@@ -97,8 +179,55 @@ export class ApiClient {
         return Promise.reject(this.handleError(error));
       }
     );
+    {{else}}
+    {{#if (or hasApiKey hasBearerToken hasBasicAuth)}}
+    // Use centralized auth interceptor
+    if (this.config.serverConfig) {
+      this.client.interceptors.request.use(
+        createAuthInterceptor(this.config.serverConfig),
+        (error) => Promise.reject(this.handleError(error))
+      );
+    }
 
-    // Response interceptor
+    // Request interceptor for debug logging
+    this.client.interceptors.request.use(
+      (config: InternalAxiosRequestConfig) => {
+        if (this.config.debug) {
+          const method = config.method?.toUpperCase() || 'UNKNOWN';
+          const url = config.url || 'unknown';
+          // eslint-disable-next-line no-console
+          console.log(`[HTTP] ${method} ${url}`);
+        }
+        return config;
+      },
+      (error) => Promise.reject(this.handleError(error))
+    );
+    {{else}}
+    // Request interceptor for debug logging only
+    this.client.interceptors.request.use(
+      (config: InternalAxiosRequestConfig) => {
+        if (this.config.debug) {
+          const method = config.method?.toUpperCase() || 'UNKNOWN';
+          const url = config.url || 'unknown';
+          // eslint-disable-next-line no-console
+          console.log(`[HTTP] ${method} ${url}`);
+        }
+        return config;
+      },
+      (error) => Promise.reject(this.handleError(error))
+    );
+    {{/if}}
+    {{/if}}
+
+    // Response interceptor for auth errors
+    {{#if (or hasApiKey hasBearerToken hasBasicAuth)}}
+    this.client.interceptors.response.use(
+      (response) => response,
+      createAuthErrorInterceptor()
+    );
+    {{/if}}
+
+    // Response interceptor for debug logging and retry logic
     this.client.interceptors.response.use(
       (response) => {
         if (this.config.debug) {

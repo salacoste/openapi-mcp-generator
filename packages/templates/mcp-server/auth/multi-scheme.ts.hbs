@@ -1,0 +1,274 @@
+/**
+ * Multi-Scheme Authentication Handler
+ *
+ * Handles APIs that require multiple authentication schemes in a single request.
+ * Supports both AND logic (multiple schemes required) and OR logic (alternative schemes).
+ * Applies operation-level security requirements that override global defaults.
+ *
+ * Generated from OpenAPI securitySchemes configuration.
+ *
+ * @module auth/multi-scheme
+ */
+
+import type { InternalAxiosRequestConfig } from 'axios';
+import type { ServerConfig } from '../config.js';
+{{#if hasApiKey}}
+import { addApiKeyAuth } from './api-key.js';
+{{/if}}
+{{#if hasBearerToken}}
+import { addBearerAuth } from './bearer.js';
+{{/if}}
+{{#if hasBasicAuth}}
+import { addBasicAuth } from './basic-auth.js';
+{{/if}}
+
+/**
+ * Security requirement definition
+ * Maps security scheme names to their scopes (for OAuth2) or empty array
+ */
+export interface SecurityRequirement {
+  [schemeName: string]: string[];
+}
+
+/**
+ * Operation metadata including security requirements
+ */
+export interface Operation {
+  /** Operation ID from OpenAPI spec */
+  operationId: string;
+  /** Path of the endpoint */
+  path: string;
+  /** HTTP method */
+  method: string;
+  /** Operation-level security requirements (overrides global if present) */
+  security?: SecurityRequirement[];
+}
+
+/**
+ * Apply multi-scheme authentication to outgoing request
+ *
+ * Processes security requirements and applies all required authentication schemes
+ * in deterministic order. Supports both AND logic (all schemes in a requirement)
+ * and OR logic (any requirement from the array).
+ *
+ * @param {InternalAxiosRequestConfig} config - Axios request configuration
+ * @param {ServerConfig} serverConfig - Server configuration with auth credentials
+ * @param {Operation} operation - Operation metadata with security requirements
+ * @returns {InternalAxiosRequestConfig} Modified request config with all auth applied
+ * @throws {Error} If required authentication credentials are missing
+ *
+ * @example
+ * // AND logic: API Key + Bearer Token both required
+ * security: [{ "apiKey": [], "bearerAuth": [] }]
+ *
+ * @example
+ * // OR logic: Either API Key OR Bearer Token
+ * security: [{ "apiKey": [] }, { "bearerAuth": [] }]
+ */
+export function applyMultiSchemeAuth(
+  config: InternalAxiosRequestConfig,
+  serverConfig: ServerConfig,
+  operation: Operation
+): InternalAxiosRequestConfig {
+  {{#if hasMultipleSecurity}}
+  // Determine which security requirements to apply
+  // Operation-level security overrides global security
+  const securityRequirements = operation.security || [
+    {{#each globalSecurity}}
+    {
+      {{#each this}}
+      "{{@key}}": [{{#each this}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}],
+      {{/each}}
+    },
+    {{/each}}
+  ];
+
+  // If no security requirements, return config unchanged
+  if (!securityRequirements || securityRequirements.length === 0) {
+    return config;
+  }
+
+  // Apply first matching security requirement (OR logic)
+  // Within each requirement, apply all schemes (AND logic)
+  const appliedRequirement = securityRequirements[0];
+
+  // Apply authentication schemes in deterministic order
+  // Order: API Key → Bearer Token → Basic Auth
+  {{#if hasApiKey}}
+  if ('{{apiKeySchemeName}}' in appliedRequirement) {
+    try {
+      config = addApiKeyAuth(config, serverConfig);
+    } catch (error) {
+      // If this is the only requirement, rethrow the error
+      if (securityRequirements.length === 1 && Object.keys(appliedRequirement).length === 1) {
+        throw error;
+      }
+      // Otherwise, log warning and continue (may have alternative schemes)
+      if (serverConfig.debug) {
+        console.warn(`Warning: API Key auth failed: ${(error as Error).message}`);
+      }
+    }
+  }
+  {{/if}}
+
+  {{#if hasBearerToken}}
+  if ('{{bearerSchemeName}}' in appliedRequirement) {
+    try {
+      config = addBearerAuth(config, serverConfig);
+    } catch (error) {
+      if (securityRequirements.length === 1 && Object.keys(appliedRequirement).length === 1) {
+        throw error;
+      }
+      if (serverConfig.debug) {
+        console.warn(`Warning: Bearer Token auth failed: ${(error as Error).message}`);
+      }
+    }
+  }
+  {{/if}}
+
+  {{#if hasBasicAuth}}
+  if ('{{basicAuthSchemeName}}' in appliedRequirement) {
+    try {
+      config = addBasicAuth(config, serverConfig);
+    } catch (error) {
+      if (securityRequirements.length === 1 && Object.keys(appliedRequirement).length === 1) {
+        throw error;
+      }
+      if (serverConfig.debug) {
+        console.warn(`Warning: Basic Auth failed: ${(error as Error).message}`);
+      }
+    }
+  }
+  {{/if}}
+  {{else}}
+  // Single security scheme - delegate to specific handler
+  {{#if hasApiKey}}
+  config = addApiKeyAuth(config, serverConfig);
+  {{/if}}
+  {{#if hasBearerToken}}
+  config = addBearerAuth(config, serverConfig);
+  {{/if}}
+  {{#if hasBasicAuth}}
+  config = addBasicAuth(config, serverConfig);
+  {{/if}}
+  {{/if}}
+
+  return config;
+}
+
+/**
+ * Validate multi-scheme authentication configuration
+ *
+ * Checks that all required authentication credentials are present based on
+ * the security requirements. For OR logic, validates that at least one
+ * set of credentials is available.
+ *
+ * @param {ServerConfig} config - Server configuration to validate
+ * @param {SecurityRequirement[]} securityRequirements - Required security schemes
+ * @throws {Error} If required credentials are missing
+ */
+export function validateMultiSchemeConfig(
+  config: ServerConfig,
+  securityRequirements: SecurityRequirement[]
+): void {
+  {{#if hasMultipleSecurity}}
+  if (!securityRequirements || securityRequirements.length === 0) {
+    return;
+  }
+
+  const errors: string[] = [];
+
+  // Check if at least one security requirement can be satisfied
+  let hasValidRequirement = false;
+
+  for (const requirement of securityRequirements) {
+    const schemes = Object.keys(requirement);
+    let allSchemesValid = true;
+
+    for (const schemeName of schemes) {
+      {{#if hasApiKey}}
+      if (schemeName === '{{apiKeySchemeName}}' && !config.apiKey) {
+        allSchemesValid = false;
+        errors.push(`Missing API Key for scheme: ${schemeName}`);
+      }
+      {{/if}}
+      {{#if hasBearerToken}}
+      if (schemeName === '{{bearerSchemeName}}' && !config.bearerToken) {
+        allSchemesValid = false;
+        errors.push(`Missing Bearer Token for scheme: ${schemeName}`);
+      }
+      {{/if}}
+      {{#if hasBasicAuth}}
+      if (schemeName === '{{basicAuthSchemeName}}' && (!config.basicAuth || !config.basicAuth.username || !config.basicAuth.password)) {
+        allSchemesValid = false;
+        errors.push(`Missing Basic Auth credentials for scheme: ${schemeName}`);
+      }
+      {{/if}}
+    }
+
+    if (allSchemesValid) {
+      hasValidRequirement = true;
+      break;
+    }
+  }
+
+  if (!hasValidRequirement && errors.length > 0) {
+    throw new Error(
+      'Multi-scheme authentication validation failed:\n' +
+      errors.join('\n') +
+      '\n\n' +
+      'This API requires multiple authentication schemes.\n' +
+      'Please configure the required credentials in your .env file.\n' +
+      'See README.md for detailed configuration instructions.'
+    );
+  }
+  {{else}}
+  // Single security scheme - validation handled by specific auth module
+  {{/if}}
+}
+
+/**
+ * Get security requirements for an operation
+ *
+ * Returns operation-level security if present, otherwise returns global security.
+ * Used to determine which authentication schemes to apply.
+ *
+ * @param {Operation} operation - Operation metadata
+ * @returns {SecurityRequirement[]} Security requirements to apply
+ */
+export function getSecurityRequirements(operation: Operation): SecurityRequirement[] {
+  if (operation.security) {
+    return operation.security;
+  }
+
+  // Return global security requirements
+  return [
+    {{#each globalSecurity}}
+    {
+      {{#each this}}
+      "{{@key}}": [{{#each this}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}],
+      {{/each}}
+    },
+    {{/each}}
+  ];
+}
+
+/**
+ * Check if operation requires multiple authentication schemes (AND logic)
+ *
+ * @param {SecurityRequirement[]} requirements - Security requirements
+ * @returns {boolean} True if any requirement has multiple schemes
+ */
+export function requiresMultipleSchemes(requirements: SecurityRequirement[]): boolean {
+  return requirements.some((req) => Object.keys(req).length > 1);
+}
+
+/**
+ * Check if operation has alternative authentication schemes (OR logic)
+ *
+ * @param {SecurityRequirement[]} requirements - Security requirements
+ * @returns {boolean} True if there are multiple requirements
+ */
+export function hasAlternativeSchemes(requirements: SecurityRequirement[]): boolean {
+  return requirements.length > 1;
+}

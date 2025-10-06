@@ -23,23 +23,777 @@ npm start
 
 ## Configuration
 
-{{#if hasAuthentication}}
-Create a `.env` file with your API credentials:
+This MCP server is configured using environment variables. Follow these steps to set up your configuration:
 
-```env
-{{#each securitySchemes}}
-{{#if (eq type "apiKey")}}
-{{screamingSnakeCase name}}=your-api-key-here
+### 1. Create .env file
+
+Copy the example environment file:
+
+```bash
+cp .env.example .env
+```
+
+### 2. Configure Required Variables
+
+Edit `.env` and set the following **required** variables:
+
+#### API_BASE_URL
+
+The base URL for the {{apiName}} API.
+
+- **Type:** String (URL)
+- **Required:** Yes
+- **Default:** {{#if primaryServer.url}}{{primaryServer.url}}{{else}}N/A{{/if}}
+- **Example:** `{{#if primaryServer.url}}{{primaryServer.url}}{{else}}https://api.example.com{{/if}}`
+
+```bash
+API_BASE_URL={{#if primaryServer.url}}{{primaryServer.url}}{{else}}https://api.example.com{{/if}}
+```
+
+{{#if hasApiKey}}
+#### API_KEY
+
+Your API key for authentication.
+
+- **Type:** String
+- **Required:** Yes
+- **Location:** {{apiKeyLocation}} header ({{apiKeyName}})
+- **How to obtain:** See [API documentation]({{#if apiKeyDocUrl}}{{apiKeyDocUrl}}{{else}}API provider documentation{{/if}})
+
+```bash
+API_KEY=your-api-key-here
+```
 {{/if}}
-{{#if (eq type "http")}}
-{{#if (eq scheme "bearer")}}
+{{#if hasBearerToken}}
+
+#### BEARER_TOKEN
+
+Your bearer token for authentication.
+
+- **Type:** String (JWT token)
+- **Required:** Yes
+- **How to obtain:** See [API documentation]({{#if tokenDocUrl}}{{tokenDocUrl}}{{else}}API provider documentation{{/if}})
+
+```bash
 BEARER_TOKEN=your-bearer-token-here
+```
 {{/if}}
+{{#if hasBasicAuth}}
+
+#### BASIC_AUTH_USERNAME
+
+Username for basic authentication.
+
+- **Type:** String
+- **Required:** Yes
+
+```bash
+BASIC_AUTH_USERNAME=your-username
+```
+
+#### BASIC_AUTH_PASSWORD
+
+Password for basic authentication.
+
+- **Type:** String
+- **Required:** Yes
+
+```bash
+BASIC_AUTH_PASSWORD=your-password
+```
+{{/if}}
+
+### 3. Configure Optional Variables (Advanced)
+
+#### API_TIMEOUT
+
+Request timeout in milliseconds.
+
+- **Type:** Number
+- **Required:** No
+- **Default:** 30000 (30 seconds)
+- **Range:** 1000 - 300000
+
+```bash
+API_TIMEOUT=30000
+```
+
+#### DEBUG
+
+Enable verbose logging for debugging.
+
+- **Type:** Boolean
+- **Required:** No
+- **Default:** false
+- **Values:** `true`, `false`, `1`, `0`, `yes`, `no`
+
+```bash
+DEBUG=true
+```
+
+#### RETRY_ATTEMPTS
+
+Number of automatic retry attempts for failed requests.
+
+- **Type:** Number
+- **Required:** No
+- **Default:** 3
+- **Range:** 0 - 10
+
+```bash
+RETRY_ATTEMPTS=3
+```
+
+#### RETRY_DELAY
+
+Delay between retry attempts in milliseconds.
+
+- **Type:** Number
+- **Required:** No
+- **Default:** 1000 (1 second)
+- **Range:** 0 - 30000
+
+```bash
+RETRY_DELAY=1000
+```
+
+### Troubleshooting Configuration
+
+**Error: "Missing required API_KEY environment variable"**
+
+- Ensure `.env` file exists in the project root
+- Verify `API_KEY` is set in `.env` file
+- Check for typos in variable name (case-sensitive)
+
+**Error: "Invalid API_BASE_URL format"**
+
+- Ensure URL includes protocol (https://)
+- Check for trailing slashes
+- Verify URL is accessible
+
+**Error: "Invalid API_TIMEOUT value"**
+
+- Must be a positive number in milliseconds
+- Example: 30000 for 30 seconds
+- Range: 1000 - 300000
+
+**Debug Mode**
+
+Enable debug mode to see detailed configuration logs:
+
+```bash
+DEBUG=true npm start
+```
+
+This will show which configuration values are loaded (credentials are masked for security).
+
+{{#if hasApiKey}}
+## Authentication
+
+This MCP server uses **API Key authentication** to access the {{apiName}} API.
+
+### API Key Configuration
+
+1. **Obtain an API Key**
+
+   {{#if apiKeyDocUrl}}
+   Visit the [API documentation]({{apiKeyDocUrl}}) to create an API key.
+   {{else}}
+   Contact your API provider to obtain an API key.
+   {{/if}}
+
+2. **Configure the API Key**
+
+   Add your API key to the `.env` file:
+
+   ```bash
+   API_KEY=your-api-key-here
+   ```
+
+3. **Verify Configuration**
+
+   Start the server with debug mode to verify the API key is configured:
+
+   ```bash
+   DEBUG=true npm start
+   ```
+
+   You should see: `✓ API Key authentication configured` (the key value will be masked)
+
+### How It Works
+
+The API key is automatically added to all API requests via request interceptor:
+
+{{#each apiKeySchemes}}
+{{#if (eq in 'header')}}
+- **Header:** `{{name}}: <your-api-key>`
+{{/if}}
+{{#if (eq in 'query')}}
+- **Query Parameter:** `?{{name}}=<your-api-key>`
+{{/if}}
+{{#if (eq in 'cookie')}}
+- **Cookie:** `{{name}}=<your-api-key>`
 {{/if}}
 {{/each}}
+
+No additional configuration is needed. The auth handler applies the API key to all requests automatically.
+
+### Troubleshooting Authentication
+
+**Error: "API Key authentication required but not configured"**
+
+- Ensure `.env` file exists in project root
+- Verify `API_KEY` is set in `.env` file
+- Check for typos in variable name (case-sensitive)
+- Remove any extra spaces around the API key value
+
+**Error: "401 Unauthorized" from API**
+
+- Verify your API key is valid and active
+- Check API key has necessary permissions
+- Ensure API key is not expired
+- Confirm API key format is correct
+
+**Security Note**
+
+Never commit your `.env` file or share your API key publicly. The `.gitignore` file prevents `.env` from being committed to version control.
+
+{{/if}}
+{{#if hasBearerToken}}
+## Bearer Token Authentication
+
+This MCP server uses **Bearer Token authentication** (JWT/OAuth2) to access the {{apiName}} API.
+
+### Bearer Token Configuration
+
+1. **Obtain a Bearer Token**
+
+   {{#if bearerTokenDocUrl}}
+   Visit the [API documentation]({{bearerTokenDocUrl}}) to obtain a bearer token.
+   {{else}}
+   Contact your API provider to obtain a bearer token (JWT or OAuth2 access token).
+   {{/if}}
+
+2. **Configure the Bearer Token**
+
+   Add your bearer token to the `.env` file:
+
+   ```bash
+   BEARER_TOKEN=your-bearer-token-here
+   ```
+
+   {{#if (eq bearerFormat 'JWT')}}
+   **JWT Token Format:** Tokens should follow the JWT format with three base64-encoded parts separated by dots:
+   ```
+   eyJhbGciOiJIUzI1NiIs... (header.payload.signature)
+   ```
+   {{/if}}
+
+3. **Verify Configuration**
+
+   Start the server with debug mode to verify the bearer token is configured:
+
+   ```bash
+   DEBUG=true npm start
+   ```
+
+   You should see: `✓ Bearer Token authentication configured` (the token value will be masked)
+
+### How It Works
+
+The bearer token is automatically added to all API requests via the `Authorization` header:
+
+- **Header:** `Authorization: Bearer <your-token>`
+
+The authentication handler applies the bearer token to all requests automatically via request interceptor.
+
+### Troubleshooting Bearer Token Authentication
+
+**Error: "Bearer Token authentication required but not configured"**
+
+- Ensure `.env` file exists in project root
+- Verify `BEARER_TOKEN` is set in `.env` file
+- Check for typos in variable name (case-sensitive)
+- Remove any extra spaces around the token value
+
+{{#if (eq bearerFormat 'JWT')}}
+**Warning: "BEARER_TOKEN does not appear to be a valid JWT format"**
+
+- JWT tokens have three parts separated by dots (xxx.yyy.zzz)
+- Verify you copied the complete token
+- Check token is not expired
+- Ensure token is not truncated
+{{/if}}
+
+**Error: "401 Unauthorized" from API**
+
+- Verify your bearer token is valid and not expired
+- Check token has necessary permissions/scopes
+- Confirm token is for the correct API environment (dev/staging/prod)
+- Try obtaining a new token
+
+**Security Note**
+
+Never commit your `.env` file or share your bearer token publicly. Bearer tokens provide full API access and should be treated as sensitive credentials.
+
+{{/if}}
+{{#if hasBasicAuth}}
+## Basic Authentication
+
+This MCP server uses **Basic Authentication** (username/password) to access the {{apiName}} API.
+
+### Basic Authentication Configuration
+
+1. **Obtain Credentials**
+
+   {{#if basicAuthDocUrl}}
+   Visit the [API documentation]({{basicAuthDocUrl}}) to create user credentials.
+   {{else}}
+   Contact your API provider to obtain a username and password for Basic Authentication.
+   {{/if}}
+
+2. **Configure Credentials**
+
+   Add your credentials to the `.env` file:
+
+   ```bash
+   BASIC_AUTH_USERNAME=your-username
+   BASIC_AUTH_PASSWORD=your-password
+   ```
+
+   **Important:** Both username and password must be set for Basic Authentication to work.
+
+3. **Verify Configuration**
+
+   Start the server with debug mode to verify Basic Authentication is configured:
+
+   ```bash
+   DEBUG=true npm start
+   ```
+
+   You should see: `✓ Basic Auth: ***hidden***` (the credentials will be masked)
+
+### How It Works
+
+Basic Authentication credentials are automatically added to all API requests via the `Authorization` header:
+
+- **Header:** `Authorization: Basic <base64(username:password)>`
+
+The authentication handler:
+1. Combines username and password with `:` separator
+2. Encodes credentials in base64 format (supports UTF-8 characters)
+3. Adds `Authorization: Basic <credentials>` header to all requests
+4. Applied automatically via request interceptor
+
+### Character Encoding
+
+Basic Authentication properly handles UTF-8 special characters in usernames and passwords:
+- International characters (é, ñ, 中文, etc.)
+- Special symbols (!@#$%^&*, etc.)
+- Spaces and punctuation
+
+All characters are properly encoded using UTF-8 before base64 conversion.
+
+### Troubleshooting Basic Authentication
+
+**Error: "Basic Authentication required but not configured"**
+
+- Ensure `.env` file exists in project root
+- Verify both `BASIC_AUTH_USERNAME` and `BASIC_AUTH_PASSWORD` are set in `.env` file
+- Check for typos in variable names (case-sensitive)
+- Remove any extra spaces around the username or password values
+
+**Error: "401 Unauthorized" from API**
+
+- Verify your username and password are correct
+- Check credentials have not expired
+- Ensure credentials have necessary permissions
+- Confirm credentials are for the correct API environment (dev/staging/prod)
+- Try requesting new credentials from the API provider
+
+**Warning: "Partial Basic Auth configuration detected"**
+
+- Both username AND password must be set
+- Setting only one will result in no authentication being applied
+- Check both environment variables are present in `.env`
+
+**Security Note**
+
+Never commit your `.env` file or share your credentials publicly. Basic Authentication credentials provide API access and should be treated as sensitive information. The `.gitignore` file prevents `.env` from being committed to version control.
+
+{{/if}}
+{{#if hasMultipleSecurity}}
+## Multi-Scheme Authentication
+
+This API requires **multiple authentication schemes** for certain operations. The server automatically applies the correct authentication based on OpenAPI security requirements.
+
+### Overview
+
+Multi-scheme authentication supports two patterns:
+
+1. **AND Logic**: Multiple authentication schemes required in a single request
+2. **OR Logic**: Alternative authentication schemes (any one can be used)
+
+### AND Logic (Multiple Schemes Required)
+
+Some operations require multiple authentication schemes simultaneously. For example, an operation might require both API Key and Bearer Token:
+
+```json
+"security": [
+  {
+    "apiKey": [],
+    "bearerAuth": []
+  }
+]
 ```
-{{else}}
-No authentication required.
+
+#### Configuration for AND Logic
+
+Set **all** required credentials in your `.env` file:
+
+```bash
+# Both credentials required
+API_KEY=your-api-key-here
+BEARER_TOKEN=your-bearer-token-here
+```
+
+#### How It Works
+
+The server automatically applies all required authentication schemes in deterministic order:
+
+1. **API Key** → Added to header/query parameter
+2. **Bearer Token** → Added to `Authorization` header
+3. **Basic Auth** → Encoded and added to `Authorization` header
+
+### OR Logic (Alternative Schemes)
+
+Some operations accept alternative authentication schemes. For example, you can use **either** API Key **or** Bearer Token:
+
+```json
+"security": [
+  { "apiKey": [] },
+  { "bearerAuth": [] }
+]
+```
+
+#### Configuration for OR Logic
+
+Set **any one** of the alternative credentials in your `.env` file:
+
+```bash
+# Option 1: Use API Key
+API_KEY=your-api-key-here
+
+# Option 2: Use Bearer Token (alternative)
+BEARER_TOKEN=your-bearer-token-here
+```
+
+The server will use the first available authentication scheme that has configured credentials.
+
+### Operation-Level Security Overrides
+
+Individual operations can override global security requirements. The server automatically detects and applies operation-specific authentication:
+
+- **Global Security**: Applied to all operations by default
+- **Operation Security**: Overrides global when specified
+
+This happens automatically - no additional configuration needed.
+
+### Validation
+
+The server validates authentication configuration at startup:
+
+✅ **Success**: At least one security requirement can be satisfied
+```bash
+✓ Multi-scheme authentication validated
+✓ API Key configured
+✓ Bearer Token configured
+```
+
+❌ **Failure**: No security requirement can be satisfied
+```bash
+✗ Multi-scheme authentication validation failed:
+  - Missing API Key for scheme: apiKey
+  - Missing Bearer Token for scheme: bearerAuth
+
+Please configure at least one complete set of credentials.
+See README.md for configuration instructions.
+```
+
+### Examples
+
+#### Example 1: API Key + Bearer Token (AND)
+
+```bash
+# .env file
+API_KEY=sk_live_abc123
+BEARER_TOKEN=eyJhbGciOiJIUzI1NiIs...
+```
+
+**Result**: Both credentials applied to requests requiring both schemes.
+
+#### Example 2: API Key OR Bearer Token
+
+```bash
+# .env file - Option A
+API_KEY=sk_live_abc123
+```
+
+**Result**: API Key used for operations accepting API Key or Bearer Token.
+
+```bash
+# .env file - Option B
+BEARER_TOKEN=eyJhbGciOiJIUzI1NiIs...
+```
+
+**Result**: Bearer Token used for operations accepting API Key or Bearer Token.
+
+### Troubleshooting Multi-Scheme Authentication
+
+**Error: "Multi-scheme authentication validation failed"**
+
+- Check that you have configured at least one complete set of credentials
+- For AND logic: All required credentials must be present
+- For OR logic: At least one alternative must be present
+- Verify no typos in environment variable names
+- Ensure no extra spaces in credential values
+
+**Error: "Missing API Key for scheme: apiKey"**
+
+- This credential is required for at least one security requirement
+- Add `API_KEY=your-key` to `.env` file
+- Or configure an alternative authentication method if supported
+
+**Debug Multi-Scheme Authentication**
+
+Enable debug mode to see which authentication schemes are being applied:
+
+```bash
+DEBUG=true npm start
+```
+
+Debug logs will show:
+- Which security requirements are active
+- Which authentication schemes are applied to each request
+- Any authentication failures with detailed context
+
+### Security Best Practices
+
+1. **Minimum Credentials**: Only configure the minimum required credentials
+2. **Rotation**: Rotate credentials regularly per your security policy
+3. **Environment Separation**: Use different credentials for dev/staging/prod
+4. **Never Commit**: Never commit `.env` file to version control
+5. **Access Control**: Restrict access to credentials using file permissions
+
+{{/if}}
+## HTTP Client
+
+The MCP server uses an Axios-based HTTP client with the following features:
+
+### Configuration
+
+```typescript
+import { ApiClient } from './http-client.js';
+
+const client = new ApiClient({
+  baseURL: 'https://api.example.com',
+  timeout: 30000,
+  headers: {
+    'User-Agent': 'MCP-Server/1.0'
+  },
+  retryCount: 3,
+  retryDelay: 1000,
+  debug: false
+});
+```
+
+### Features
+
+- **Type-Safe Methods**: Generic request methods with full TypeScript support
+  - `get<T>(url, config?): Promise<T>`
+  - `post<T>(url, data?, config?): Promise<T>`
+  - `put<T>(url, data?, config?): Promise<T>`
+  - `patch<T>(url, data?, config?): Promise<T>`
+  - `delete<T>(url, config?): Promise<T>`
+
+- **Error Handling**: Custom `ApiError` class with detailed context
+  - Status code, response data, request info
+  - Network error detection
+  - Timeout error handling
+
+- **Retry Logic**: Automatic retry with exponential backoff
+  - Retries on 5xx server errors
+  - Retries on network failures
+  - Configurable retry count (default: 3)
+  - Exponential backoff: 1s → 2s → 4s → 8s → 16s
+  - Maximum retry delay: 30 seconds
+
+- **Request/Response Interceptors**
+  - Authentication header injection
+  - Request/response logging (debug mode)
+  - Custom transformation support
+
+### Usage Example
+
+```typescript
+import { apiClient } from './http-client.js';
+import { User } from './types.js';
+
+// Type-safe GET request
+const user = await apiClient.get<User>('/users/123');
+
+// POST with request body
+const newUser = await apiClient.post<User>('/users', {
+  name: 'John Doe',
+  email: 'john@example.com'
+});
+
+// Error handling
+try {
+  const data = await apiClient.get('/protected');
+} catch (error) {
+  if (error instanceof ApiError) {
+    console.error(`API Error: ${error.statusCode} - ${error.message}`);
+  }
+}
+```
+
+## MCP Server Architecture
+
+The server implements the Model Context Protocol (MCP) for integration with Claude Desktop.
+
+### Server Startup
+
+The server initializes with:
+1. **Environment Configuration**: Loads `.env` file with API credentials
+2. **HTTP Client Setup**: Configures Axios client with base URL and auth
+3. **Tool Registration**: Registers all API operations as MCP tools
+4. **Transport Connection**: Connects stdio transport for Claude communication
+
+### Tool Execution Flow
+
+1. Claude sends `tools/call` request via MCP protocol
+2. Server routes request to appropriate tool by name
+3. Tool executes API call via HTTP client
+4. Response transformed to MCP format
+5. Result returned to Claude
+
+### Graceful Shutdown
+
+The server handles shutdown signals gracefully:
+- **SIGINT** (Ctrl+C): Closes server and exits
+- **SIGTERM**: Closes server and exits
+- Cleanup: Closes HTTP connections, releases resources
+
+### Debug Logging
+
+Enable debug mode to see detailed server activity:
+
+```bash
+DEBUG=true npm start
+```
+
+Debug logs include:
+- Server startup and configuration
+- Tool registration details
+- Request/response details (sanitized)
+- Error context and stack traces
+- Performance timing (tool execution duration)
+
+## Security
+
+**⚠️ IMPORTANT: Read this section before deploying to production**
+
+### Credential Security
+
+**NEVER commit your `.env` file to version control.**
+
+Your `.env` file contains sensitive credentials that should be kept private:
+
+{{#if (or hasApiKey hasBearerToken hasBasicAuth)}}
+```bash
+# ❌ NEVER DO THIS
+git add .env
+git commit -m "Add env file"  # This exposes your credentials!
+
+# ✅ CORRECT APPROACH
+# .env is already in .gitignore
+# Share .env.example instead (without real credentials)
+```
+{{/if}}
+
+### Security Best Practices
+
+1. **Environment Variables**
+   - Always use `.env` for local development
+   - Use secure secret management for production (AWS Secrets Manager, Vault, etc.)
+   - Never hardcode credentials in source code
+
+2. **HTTPS Requirement**
+   - Always use HTTPS endpoints (`https://`) for API communication
+   - HTTP (`http://`) transmits credentials in plain text
+
+3. **Credential Rotation**
+   - Rotate credentials every 30-90 days
+   - Immediately rotate if credentials are compromised
+   - Use different credentials for dev/staging/production
+
+4. **Least Privilege**
+   - Use API keys with minimal required permissions
+   - Avoid admin or full-access credentials
+   - Create separate keys for different environments
+
+5. **Debug Mode**
+   - **Never enable debug mode in production** (`DEBUG=false`)
+   - Debug logs may expose sensitive information
+   - Only use debug mode for local development troubleshooting
+
+### Security Checklist
+
+Before deploying, verify:
+
+- [ ] `.env` file is NOT committed to git
+- [ ] API endpoints use HTTPS (not HTTP)
+- [ ] Debug mode is disabled (`DEBUG=false`)
+- [ ] Credentials have minimal required permissions
+- [ ] Production uses secure secret manager (not `.env` file)
+- [ ] Team members have individual credentials (not shared)
+
+### Additional Resources
+
+For comprehensive security guidelines, see **[SECURITY.md](./SECURITY.md)** which includes:
+
+- Credential management best practices
+- Production deployment with secret managers
+- Security incident response procedures
+- External security standards and references
+
+{{#if (or hasApiKey hasBearerToken hasBasicAuth)}}
+### Quick Security Tips
+
+{{#if hasApiKey}}
+**API Key Security:**
+- Store in `.env`, never in code
+- Rotate every 30-90 days
+- Use minimal required scopes
+- Revoke immediately if compromised
+{{/if}}
+
+{{#if hasBearerToken}}
+**Bearer Token Security:**
+- Tokens should have expiration times
+- Store securely, never log or expose
+- Rotate before expiration
+- Use short-lived tokens when possible
+{{/if}}
+
+{{#if hasBasicAuth}}
+**Basic Auth Security:**
+- Use strong passwords (12+ characters, mixed case, numbers, symbols)
+- Different credentials per environment
+- Never log username/password
+- Consider upgrading to OAuth2/JWT for production
+{{/if}}
 {{/if}}
 
 ## Available Tools

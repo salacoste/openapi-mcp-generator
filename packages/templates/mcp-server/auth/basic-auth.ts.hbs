@@ -1,0 +1,103 @@
+/**
+ * Basic Authentication Handler
+ *
+ * Implements HTTP Basic Authentication by encoding username:password credentials
+ * in base64 and adding them to the Authorization header.
+ *
+ * @module auth/basic-auth
+ */
+
+import type { InternalAxiosRequestConfig } from 'axios';
+import type { ServerConfig } from '../config.js';
+
+/**
+ * Add Basic Authentication to outgoing request
+ *
+ * Encodes username and password in base64 format and adds to Authorization header.
+ * Header format: `Authorization: Basic <base64(username:password)>`
+ *
+ * @param config - Axios request configuration to modify
+ * @param serverConfig - Server configuration containing basic auth credentials
+ * @returns Modified Axios request configuration with Authorization header
+ * @throws {Error} If username or password is missing from configuration
+ *
+ * @example
+ * ```typescript
+ * const config = addBasicAuth(requestConfig, serverConfig);
+ * // Adds: Authorization: Basic dXNlcm5hbWU6cGFzc3dvcmQ=
+ * ```
+ */
+export function addBasicAuth(
+  config: InternalAxiosRequestConfig,
+  serverConfig: ServerConfig
+): InternalAxiosRequestConfig {
+  const { username, password } = serverConfig.basicAuth || {};
+
+  if (!username || !password) {
+    throw new Error(
+      'Basic Authentication required but not configured.\n' +
+      'Please set the following environment variables in your .env file:\n' +
+      '  BASIC_AUTH_USERNAME=your-username\n' +
+      '  BASIC_AUTH_PASSWORD=your-password\n' +
+      'See README.md for detailed configuration instructions.'
+    );
+  }
+
+  // Encode credentials in base64 format (handles UTF-8 characters)
+  const credentials = Buffer.from(`${username}:${password}`, 'utf-8').toString('base64');
+
+  // Add Authorization header with Basic scheme
+  config.headers['Authorization'] = `Basic ${credentials}`;
+
+  return config;
+}
+
+/**
+ * Validate Basic Authentication configuration
+ *
+ * Checks that both username and password are present in server configuration.
+ * Should be called during HTTP client initialization to fail fast.
+ *
+ * @param config - Server configuration to validate
+ * @returns void
+ * @throws {Error} If Basic Auth is required but username or password is missing
+ *
+ * @example
+ * ```typescript
+ * validateBasicAuthConfig(serverConfig);
+ * // Throws if BASIC_AUTH_USERNAME or BASIC_AUTH_PASSWORD not set
+ * ```
+ */
+export function validateBasicAuthConfig(config: ServerConfig): void {
+  {{#if basicAuthRequired}}
+  // Basic Authentication is required for this API
+  if (!config.basicAuth || !config.basicAuth.username || !config.basicAuth.password) {
+    throw new Error(
+      'Basic Authentication is required for this API.\n' +
+      '\n' +
+      'Please set the following environment variables:\n' +
+      '  BASIC_AUTH_USERNAME=your-username\n' +
+      '  BASIC_AUTH_PASSWORD=your-password\n' +
+      '\n' +
+      'Add these lines to your .env file:\n' +
+      '  BASIC_AUTH_USERNAME=your-username\n' +
+      '  BASIC_AUTH_PASSWORD=your-password\n' +
+      '\n' +
+      '{{#if basicAuthDocUrl}}' +
+      'To obtain credentials, visit: {{basicAuthDocUrl}}\n' +
+      '\n' +
+      '{{/if}}' +
+      'See README.md for detailed configuration instructions.'
+    );
+  }
+  {{else}}
+  // Basic Authentication is optional for this API
+  if (config.basicAuth && (!config.basicAuth.username || !config.basicAuth.password)) {
+    console.warn(
+      'Warning: Partial Basic Auth configuration detected.\n' +
+      'Both BASIC_AUTH_USERNAME and BASIC_AUTH_PASSWORD must be set.\n' +
+      'Basic Authentication will not be applied to requests.'
+    );
+  }
+  {{/if}}
+}

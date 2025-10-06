@@ -6,10 +6,28 @@ import { describe, it, expect } from 'vitest';
 import { generateParameterMapping } from '../src/parameter-mapper.js';
 import type { OperationMetadata } from '@openapi-to-mcp/parser';
 
+// Helper to create mock operation with required fields
+function createMockOperation(overrides: Partial<OperationMetadata>): OperationMetadata {
+  return {
+    operationId: 'testOperation',
+    path: '/test',
+    method: 'get',
+    summary: 'Test operation',
+    description: 'Test description',
+    pathParameters: [],
+    queryParameters: [],
+    headerParameters: [],
+    tags: [],
+    deprecated: false,
+    responses: [],
+    ...overrides,
+  };
+}
+
 describe('generateParameterMapping', () => {
   describe('Path Parameter Substitution', () => {
     it('should generate code for single path parameter', () => {
-      const operation: OperationMetadata = {
+      const operation: OperationMetadata = createMockOperation({
         operationId: 'getUser',
         path: '/users/{userId}',
         method: 'get',
@@ -23,11 +41,7 @@ describe('generateParameterMapping', () => {
             schema: { type: 'string' },
           },
         ],
-        queryParameters: [],
-        headerParameters: [],
-        tags: [],
-        deprecated: false,
-      };
+      });
 
       const code = generateParameterMapping(operation);
 
@@ -61,6 +75,7 @@ describe('generateParameterMapping', () => {
         headerParameters: [],
         tags: [],
         deprecated: false,
+        responses: [],
       };
 
       const code = generateParameterMapping(operation);
@@ -543,6 +558,199 @@ describe('generateParameterMapping', () => {
       expect(code).toContain('Missing required path parameter: userId');
       expect(code).toContain('Missing required path parameter: postId');
       expect(code).toContain('Missing required request body');
+    });
+  });
+
+  describe('Array Parameter Serialization (AC11)', () => {
+    it('should serialize array with form style and explode=true (default)', () => {
+      const operation: OperationMetadata = createMockOperation({
+        queryParameters: [
+          {
+            name: 'tags',
+            in: 'query',
+            required: false,
+            schema: { type: 'array', items: { type: 'string' } },
+            style: 'form',
+            explode: true,
+          },
+        ],
+      });
+
+      const code = generateParameterMapping(operation);
+
+      // Exploded form style: axios handles natively as array
+      expect(code).toContain('params[\'tags\'] = args.tags');
+      expect(code).not.toContain('.join');
+    });
+
+    it('should serialize array with form style and explode=false', () => {
+      const operation: OperationMetadata = createMockOperation({
+        queryParameters: [
+          {
+            name: 'tags',
+            in: 'query',
+            required: false,
+            schema: { type: 'array', items: { type: 'string' } },
+            style: 'form',
+            explode: false,
+          },
+        ],
+      });
+
+      const code = generateParameterMapping(operation);
+
+      // Non-exploded form style: comma-separated
+      expect(code).toContain('(Array.isArray(args.tags) ? args.tags.join(\',\') : args.tags)');
+    });
+
+    it('should serialize array with spaceDelimited style', () => {
+      const operation: OperationMetadata = createMockOperation({
+        queryParameters: [
+          {
+            name: 'tags',
+            in: 'query',
+            required: false,
+            schema: { type: 'array', items: { type: 'string' } },
+            style: 'spaceDelimited',
+          },
+        ],
+      });
+
+      const code = generateParameterMapping(operation);
+
+      // Space delimited: join with space
+      expect(code).toContain('(Array.isArray(args.tags) ? args.tags.join(\' \') : args.tags)');
+    });
+
+    it('should serialize array with pipeDelimited style', () => {
+      const operation: OperationMetadata = createMockOperation({
+        queryParameters: [
+          {
+            name: 'tags',
+            in: 'query',
+            required: false,
+            schema: { type: 'array', items: { type: 'string' } },
+            style: 'pipeDelimited',
+          },
+        ],
+      });
+
+      const code = generateParameterMapping(operation);
+
+      // Pipe delimited: join with pipe
+      expect(code).toContain('(Array.isArray(args.tags) ? args.tags.join(\'|\') : args.tags)');
+    });
+
+    it('should default to form style with explode when style not specified', () => {
+      const operation: OperationMetadata = createMockOperation({
+        queryParameters: [
+          {
+            name: 'tags',
+            in: 'query',
+            required: false,
+            schema: { type: 'array', items: { type: 'string' } },
+            // No style specified - should default to form with explode=true
+          },
+        ],
+      });
+
+      const code = generateParameterMapping(operation);
+
+      // Default: form style with explode (array passed as-is for axios)
+      expect(code).toContain('params[\'tags\'] = args.tags');
+      expect(code).not.toContain('.join');
+    });
+
+    it('should handle array parameters in headers with comma separation', () => {
+      const operation: OperationMetadata = createMockOperation({
+        headerParameters: [
+          {
+            name: 'X-Custom-Tags',
+            in: 'header',
+            required: false,
+            schema: { type: 'array', items: { type: 'string' } },
+          },
+        ],
+      });
+
+      const code = generateParameterMapping(operation);
+
+      // Custom headers are included and arrays are comma-separated
+      expect(code).toContain('headers[\'X-Custom-Tags\']');
+      // Array serialization converts to string via String() which for arrays joins with comma
+      expect(code).toContain('String(');
+    });
+  });
+
+  describe('Performance Benchmarks (AC18)', () => {
+    it('should generate parameter mapping code in < 10ms per operation', () => {
+      const operation: OperationMetadata = createMockOperation({
+        pathParameters: [
+          { name: 'userId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        queryParameters: [
+          { name: 'limit', in: 'query', required: false, schema: { type: 'integer' } },
+          { name: 'offset', in: 'query', required: false, schema: { type: 'integer' } },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { type: 'object' },
+            },
+          },
+        },
+      });
+
+      const iterations = 100;
+      const startTime = performance.now();
+
+      for (let i = 0; i < iterations; i++) {
+        generateParameterMapping(operation);
+      }
+
+      const endTime = performance.now();
+      const avgTime = (endTime - startTime) / iterations;
+
+      expect(avgTime).toBeLessThan(10); // Must be < 10ms per operation
+    });
+
+    it('should handle complex operations efficiently', () => {
+      const operation: OperationMetadata = createMockOperation({
+        pathParameters: [
+          { name: 'userId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'postId', in: 'path', required: true, schema: { type: 'integer' } },
+        ],
+        queryParameters: [
+          { name: 'limit', in: 'query', required: false, schema: { type: 'integer' } },
+          { name: 'offset', in: 'query', required: false, schema: { type: 'integer' } },
+          { name: 'tags', in: 'query', required: false, schema: { type: 'array' }, style: 'form' },
+          { name: 'expand', in: 'query', required: false, schema: { type: 'string' } },
+        ],
+        headerParameters: [
+          { name: 'X-Request-ID', in: 'header', required: false, schema: { type: 'string' } },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { type: 'object' },
+            },
+          },
+        },
+      });
+
+      const iterations = 100;
+      const startTime = performance.now();
+
+      for (let i = 0; i < iterations; i++) {
+        generateParameterMapping(operation);
+      }
+
+      const endTime = performance.now();
+      const avgTime = (endTime - startTime) / iterations;
+
+      expect(avgTime).toBeLessThan(10); // Must be < 10ms even for complex operations
     });
   });
 });

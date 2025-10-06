@@ -1,0 +1,317 @@
+/**
+ * Configuration module for {{apiName}} MCP Server
+ *
+ * Loads and validates environment variables for API authentication and settings.
+ * Supports multiple authentication methods: API Key, Bearer Token, Basic Auth.
+ *
+ * @module config
+ */
+
+import { config as loadEnv } from 'dotenv';
+import { URL } from 'url';
+
+/**
+ * Server configuration interface
+ * Contains all settings for API communication and authentication
+ */
+export interface ServerConfig {
+  // Authentication credentials (optional, based on API requirements)
+  apiKey?: string;
+  bearerToken?: string;
+  basicAuth?: {
+    username: string;
+    password: string;
+  };
+
+  // API configuration
+  baseURL: string;
+  timeout: number;
+  debug: boolean;
+
+  // Retry configuration
+  retryAttempts: number;
+  retryDelay: number;
+}
+
+/**
+ * Security requirements from OpenAPI specification
+ * Indicates which authentication methods are supported/required by the API
+ */
+export interface SecurityRequirements {
+  hasApiKey: boolean;
+  hasBearerToken: boolean;
+  hasBasicAuth: boolean;
+  required: string[];
+}
+
+// Generated from OpenAPI security schemes
+const SECURITY_REQUIREMENTS: SecurityRequirements = {
+  hasApiKey: {{hasApiKey}},
+  hasBearerToken: {{hasBearerToken}},
+  hasBasicAuth: {{hasBasicAuth}},
+  required: [{{#each requiredAuth}}'{{this}}'{{#unless @last}}, {{/unless}}{{/each}}]
+};
+
+/**
+ * Load and validate server configuration from environment variables
+ *
+ * Loads .env file if present and parses all configuration values.
+ * Validates required credentials based on API security requirements.
+ *
+ * @returns {ServerConfig} Validated configuration object
+ * @throws {Error} If required configuration is missing or invalid
+ */
+export function loadConfig(): ServerConfig {
+  // Load .env file (if exists)
+  loadEnv();
+
+  // Parse environment variables
+  const config: ServerConfig = {
+    // Authentication
+    apiKey: process.env.API_KEY,
+    bearerToken: process.env.BEARER_TOKEN,
+    basicAuth: parseBasicAuth(),
+
+    // API Configuration
+    baseURL: parseBaseURL(),
+    timeout: parseTimeout(),
+    debug: parseDebug(),
+
+    // Retry Configuration
+    retryAttempts: parseRetryAttempts(),
+    retryDelay: parseRetryDelay()
+  };
+
+  // Validate configuration
+  validateConfig(config);
+
+  // Log configuration (without credentials) if debug enabled
+  if (config.debug) {
+    logConfig(config);
+  }
+
+  return config;
+}
+
+/**
+ * Parse Basic Authentication credentials from environment variables
+ * Both username and password must be present to enable Basic Auth
+ *
+ * @returns {Object|undefined} Basic auth credentials or undefined if not configured
+ */
+function parseBasicAuth(): { username: string; password: string } | undefined {
+  const username = process.env.BASIC_AUTH_USERNAME;
+  const password = process.env.BASIC_AUTH_PASSWORD;
+
+  if (username && password) {
+    return { username, password };
+  }
+
+  return undefined;
+}
+
+/**
+ * Parse and validate base URL from environment variables
+ *
+ * @returns {string} Validated base URL
+ * @throws {Error} If URL is missing or invalid format
+ */
+function parseBaseURL(): string {
+  const baseURL = process.env.API_BASE_URL || '{{defaultBaseURL}}';
+
+  if (!baseURL) {
+    throw new Error(
+      'Missing required API_BASE_URL environment variable. ' +
+      'Please set API_BASE_URL in your .env file.'
+    );
+  }
+
+  // Validate URL format
+  try {
+    new URL(baseURL);
+  } catch (error) {
+    throw new Error(
+      `Invalid API_BASE_URL format: "${baseURL}". ` +
+      'Must be a valid URL (e.g., https://api.example.com)'
+    );
+  }
+
+  return baseURL;
+}
+
+// Configuration defaults
+const DEFAULT_TIMEOUT_MS = 30000; // 30 seconds
+const DEFAULT_RETRY_ATTEMPTS = 3;
+const DEFAULT_RETRY_DELAY_MS = 1000; // 1 second
+
+/**
+ * Validation constraints for numeric values
+ */
+type ValidationConstraint = 'positive' | 'non-negative';
+
+/**
+ * Parse and validate a numeric environment variable
+ * DRY helper to eliminate parseInt duplication
+ *
+ * @param {string} envVarName - Name of the environment variable
+ * @param {number} defaultValue - Default value if not set
+ * @param {ValidationConstraint} constraint - Validation constraint to apply
+ * @param {string} description - Human-readable description for error messages
+ * @returns {number} Parsed and validated number
+ * @throws {Error} If value is invalid according to constraint
+ */
+function parseNumericEnvVar(
+  envVarName: string,
+  defaultValue: number,
+  constraint: ValidationConstraint,
+  description: string
+): number {
+  const value = process.env[envVarName];
+
+  if (!value) {
+    return defaultValue;
+  }
+
+  const parsed = parseInt(value, 10);
+
+  // Validate based on constraint
+  const isValid = constraint === 'positive'
+    ? !isNaN(parsed) && parsed > 0
+    : !isNaN(parsed) && parsed >= 0;
+
+  if (!isValid) {
+    const constraintMsg = constraint === 'positive'
+      ? 'Must be a positive number'
+      : 'Must be a non-negative integer';
+
+    throw new Error(
+      `Invalid ${envVarName} value: "${value}". ` +
+      `${constraintMsg} ${description}`
+    );
+  }
+
+  return parsed;
+}
+
+/**
+ * Parse timeout value from environment variables
+ *
+ * @returns {number} Timeout in milliseconds (default: 30000)
+ * @throws {Error} If timeout value is invalid
+ */
+function parseTimeout(): number {
+  return parseNumericEnvVar(
+    'API_TIMEOUT',
+    DEFAULT_TIMEOUT_MS,
+    'positive',
+    'in milliseconds (e.g., 30000)'
+  );
+}
+
+/**
+ * Parse debug flag from environment variables
+ * Accepts: true, false, 1, 0, yes, no (case-insensitive)
+ *
+ * @returns {boolean} Debug mode enabled/disabled (default: false)
+ */
+function parseDebug(): boolean {
+  const debug = process.env.DEBUG?.toLowerCase();
+  return debug === 'true' || debug === '1' || debug === 'yes';
+}
+
+/**
+ * Parse retry attempts from environment variables
+ *
+ * @returns {number} Number of retry attempts (default: 3)
+ * @throws {Error} If retry attempts value is invalid
+ */
+function parseRetryAttempts(): number {
+  return parseNumericEnvVar(
+    'RETRY_ATTEMPTS',
+    DEFAULT_RETRY_ATTEMPTS,
+    'non-negative',
+    '(e.g., 3)'
+  );
+}
+
+/**
+ * Parse retry delay from environment variables
+ *
+ * @returns {number} Delay between retries in milliseconds (default: 1000)
+ * @throws {Error} If retry delay value is invalid
+ */
+function parseRetryDelay(): number {
+  return parseNumericEnvVar(
+    'RETRY_DELAY',
+    DEFAULT_RETRY_DELAY_MS,
+    'non-negative',
+    'in milliseconds (e.g., 1000)'
+  );
+}
+
+/**
+ * Validate configuration against API security requirements
+ * Ensures all required authentication credentials are present
+ *
+ * @param {ServerConfig} config - Configuration to validate
+ * @throws {Error} If required credentials are missing
+ */
+function validateConfig(config: ServerConfig): void {
+  const errors: string[] = [];
+
+  // Validate required authentication credentials based on OpenAPI security schemes
+  if (SECURITY_REQUIREMENTS.hasApiKey && !config.apiKey) {
+    errors.push(
+      'Missing required API_KEY environment variable. ' +
+      'This API requires API Key authentication.'
+    );
+  }
+
+  if (SECURITY_REQUIREMENTS.hasBearerToken && !config.bearerToken) {
+    errors.push(
+      'Missing required BEARER_TOKEN environment variable. ' +
+      'This API requires Bearer Token authentication.'
+    );
+  }
+
+  if (SECURITY_REQUIREMENTS.hasBasicAuth && !config.basicAuth) {
+    errors.push(
+      'Missing required BASIC_AUTH_USERNAME and BASIC_AUTH_PASSWORD environment variables. ' +
+      'This API requires Basic Authentication.'
+    );
+  }
+
+  if (errors.length > 0) {
+    throw new Error(
+      'Configuration validation failed:\n' +
+      errors.map(e => `  - ${e}`).join('\n') +
+      '\n\nPlease check your .env file and ensure all required credentials are set.'
+    );
+  }
+}
+
+/**
+ * Log configuration details (with credentials masked)
+ * Only called when debug mode is enabled
+ *
+ * @param {ServerConfig} config - Configuration to log
+ */
+function logConfig(config: ServerConfig): void {
+  console.log('📋 Server Configuration:');
+  console.log(`  Base URL: ${config.baseURL}`);
+  console.log(`  Timeout: ${config.timeout}ms`);
+  console.log(`  Debug: ${config.debug}`);
+  console.log(`  Retry Attempts: ${config.retryAttempts}`);
+  console.log(`  Retry Delay: ${config.retryDelay}ms`);
+
+  // Mask credentials - never log actual values
+  if (config.apiKey) {
+    console.log('  API Key: ***hidden***');
+  }
+  if (config.bearerToken) {
+    console.log('  Bearer Token: ***hidden***');
+  }
+  if (config.basicAuth) {
+    console.log('  Basic Auth: ***hidden***');
+  }
+}

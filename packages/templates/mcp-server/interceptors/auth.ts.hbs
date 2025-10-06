@@ -1,0 +1,82 @@
+import type { InternalAxiosRequestConfig, AxiosError } from 'axios';
+import type { ServerConfig } from '../config.js';
+{{#if hasApiKey}}
+import { addApiKeyAuth } from '../auth/api-key.js';
+{{/if}}
+{{#if hasBearerToken}}
+import { addBearerAuth } from '../auth/bearer.js';
+{{/if}}
+{{#if hasBasicAuth}}
+import { addBasicAuth } from '../auth/basic-auth.js';
+{{/if}}
+
+/**
+ * Request interceptor for authentication
+ * Applies all required authentication schemes to outgoing requests
+ *
+ * @param config - Server configuration containing auth credentials
+ * @returns Axios request interceptor function
+ */
+export function createAuthInterceptor(config: ServerConfig) {
+  // Cache for auth methods to avoid recomputation
+  const authMethods: string[] = [];
+  {{#if hasApiKey}}authMethods.push('API Key');{{/if}}
+  {{#if hasBearerToken}}authMethods.push('Bearer Token');{{/if}}
+  {{#if hasBasicAuth}}authMethods.push('Basic Auth');{{/if}}
+
+  return async (
+    requestConfig: InternalAxiosRequestConfig
+  ): Promise<InternalAxiosRequestConfig> => {
+    try {
+      // Apply authentication schemes in order
+      {{#if hasApiKey}}
+      requestConfig = addApiKeyAuth(requestConfig, config);
+      {{/if}}
+      {{#if hasBearerToken}}
+      requestConfig = addBearerAuth(requestConfig, config);
+      {{/if}}
+      {{#if hasBasicAuth}}
+      requestConfig = addBasicAuth(requestConfig, config);
+      {{/if}}
+
+      // Log auth application (debug mode only, no credentials)
+      if (config.debug && authMethods.length > 0) {
+        console.log(`✓ Authentication applied: ${authMethods.join(', ')}`);
+      }
+
+      return requestConfig;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(
+        `Authentication error for ${requestConfig.url}: ${errorMessage}`
+      );
+      throw error;
+    }
+  };
+}
+
+/**
+ * Response interceptor for auth error handling
+ * Handles 401/403 responses with helpful error messages
+ *
+ * @returns Axios error interceptor function
+ */
+export function createAuthErrorInterceptor() {
+  return (error: AxiosError) => {
+    if (error.response?.status === 401) {
+      throw new Error(
+        `Authentication failed (401 Unauthorized).\n` +
+          `Please verify your credentials in the .env file.`
+      );
+    }
+
+    if (error.response?.status === 403) {
+      throw new Error(
+        `Access forbidden (403 Forbidden).\n` +
+          `Your credentials may not have sufficient permissions.`
+      );
+    }
+
+    return Promise.reject(error);
+  };
+}

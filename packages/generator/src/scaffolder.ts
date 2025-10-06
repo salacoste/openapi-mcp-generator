@@ -8,6 +8,7 @@ import { createDirectory, writeFile } from './fs-utils.js';
 import { log } from './utils/logger.js';
 import { GenerationError } from './errors.js';
 import type { SecuritySchemeTemplateData, TagTemplateData } from './types.js';
+import { analyzeSecurityRequirements } from './security-analyzer.js';
 
 /**
  * Options for scaffolding a project
@@ -184,7 +185,7 @@ async function generateTsConfig(outputDir: string): Promise<void> {
 }
 
 /**
- * Generates .env.example file
+ * Generates .env.example file with comprehensive security guidance
  */
 async function generateEnvExample(
   outputDir: string,
@@ -193,8 +194,12 @@ async function generateEnvExample(
   log('Generating .env.example...');
 
   const lines: string[] = [
+    '# =============================================================================',
     `# ${options.apiName} MCP Server Configuration`,
+    '# =============================================================================',
     '# Copy this file to .env and fill in your values',
+    '# Never commit .env file to version control!',
+    '# =============================================================================',
     '',
     '# API Base URL',
     `API_BASE_URL=${options.baseURL}`,
@@ -204,32 +209,69 @@ async function generateEnvExample(
     '',
   ];
 
-  // Add authentication variables if security schemes are present
+  // Generate security guidance if security schemes are present
   if (options.securitySchemes && options.securitySchemes.length > 0) {
-    lines.push('# Authentication (uncomment and configure as needed)');
+    const guidance = analyzeSecurityRequirements(options.securitySchemes);
 
-    const hasApiKey = options.securitySchemes.some(
-      (s) => s.type === 'apiKey'
-    );
-    const hasBearerToken = options.securitySchemes.some(
-      (s) => s.type === 'http' && s.scheme === 'bearer'
-    );
-    const hasBasicAuth = options.securitySchemes.some(
-      (s) => s.type === 'http' && s.scheme === 'basic'
-    );
+    lines.push('# =============================================================================');
+    lines.push('# AUTHENTICATION CREDENTIALS');
+    lines.push('# =============================================================================');
 
-    if (hasApiKey) {
-      lines.push('# API_KEY=your-api-key-here');
-    }
-    if (hasBearerToken) {
-      lines.push('# BEARER_TOKEN=your-bearer-token-here');
-    }
-    if (hasBasicAuth) {
-      lines.push('# BASIC_AUTH_USERNAME=your-username');
-      lines.push('# BASIC_AUTH_PASSWORD=your-password');
+    if (guidance.required.length > 0) {
+      lines.push(`# This API requires the following authentication:`);
+      for (const scheme of guidance.required) {
+        lines.push(`#   ✓ ${scheme} (REQUIRED)`);
+      }
     }
 
+    if (guidance.optional.length > 0) {
+      lines.push(`# Optional authentication:`);
+      for (const scheme of guidance.optional) {
+        lines.push(`#   ○ ${scheme} (optional)`);
+      }
+    }
+
+    if (guidance.unsupported.length > 0) {
+      lines.push(`# Unsupported schemes (manual implementation required):`);
+      for (const unsupported of guidance.unsupported) {
+        lines.push(`#   ⚠️  ${unsupported.name} (${unsupported.type})`);
+      }
+    }
+
+    if (guidance.warnings.length > 0) {
+      lines.push('#');
+      lines.push('# ⚡ Important Notes:');
+      for (const warning of guidance.warnings) {
+        lines.push(`#   ${warning}`);
+      }
+    }
+
+    lines.push('#');
+    lines.push('# Follow the steps in README.md to obtain your credentials.');
+    lines.push('# =============================================================================');
     lines.push('');
+
+    // Add environment variables with detailed comments
+    for (const envVar of guidance.envVars) {
+      const requiredLabel = envVar.required ? ' (REQUIRED)' : ' (optional)';
+      lines.push(`# ${envVar.name}${requiredLabel}`);
+      lines.push(`# ${envVar.description}`);
+
+      if (envVar.setupHint) {
+        lines.push(`# Hint: ${envVar.setupHint}`);
+      }
+
+      if (guidance.docLinks.find((l) => l.scheme === envVar.name)) {
+        const docLink = guidance.docLinks.find((l) => l.scheme === envVar.name);
+        if (docLink?.url) {
+          lines.push(`# Docs: ${docLink.url}`);
+        }
+      }
+
+      lines.push(`# Example: ${envVar.name}=${envVar.example}`);
+      lines.push(`${envVar.name}=`);
+      lines.push('');
+    }
   }
 
   lines.push('# Debug Mode (set to \'true\' to enable verbose logging)');
@@ -349,6 +391,121 @@ async function generateReadme(
   }
   lines.push('```');
   lines.push('');
+
+  // Authentication Setup (Story 4.6)
+  if (hasAuth && options.securitySchemes) {
+    const guidance = analyzeSecurityRequirements(options.securitySchemes);
+
+    lines.push('## Authentication Setup');
+    lines.push('');
+    lines.push('This API requires authentication. Follow these steps to configure your credentials:');
+    lines.push('');
+
+    // Required authentication
+    if (guidance.required.length > 0) {
+      lines.push('### Required Authentication');
+      lines.push('');
+      for (const scheme of guidance.required) {
+        lines.push(`#### ${scheme}`);
+        lines.push('');
+
+        // Find environment variables for this scheme
+        const schemeEnvVars = guidance.envVars.filter(
+          (v) => v.required && v.description.includes(scheme)
+        );
+
+        for (const envVar of schemeEnvVars) {
+          lines.push(`**Environment Variable:** \`${envVar.name}\``);
+          lines.push('');
+          lines.push(`**Description:** ${envVar.description}`);
+          lines.push('');
+
+          if (envVar.setupHint) {
+            lines.push(`**Setup:** ${envVar.setupHint}`);
+            lines.push('');
+          }
+
+          lines.push(`**Example:**`);
+          lines.push('```bash');
+          lines.push(`${envVar.name}=${envVar.example}`);
+          lines.push('```');
+          lines.push('');
+        }
+
+        // Add documentation links if available
+        const docLink = guidance.docLinks.find((l) => l.scheme === scheme);
+        if (docLink) {
+          if (docLink.url) {
+            lines.push(`**Documentation:** [${docLink.description}](${docLink.url})`);
+          } else {
+            lines.push(`**Note:** ${docLink.description}`);
+          }
+          lines.push('');
+        }
+      }
+    }
+
+    // Optional authentication
+    if (guidance.optional.length > 0) {
+      lines.push('### Optional Authentication');
+      lines.push('');
+      for (const scheme of guidance.optional) {
+        lines.push(`#### ${scheme} (Optional)`);
+        lines.push('');
+
+        const schemeEnvVars = guidance.envVars.filter(
+          (v) => !v.required && v.description.includes(scheme)
+        );
+
+        for (const envVar of schemeEnvVars) {
+          lines.push(`- \`${envVar.name}\`: ${envVar.description}`);
+        }
+        lines.push('');
+      }
+    }
+
+    // Unsupported schemes
+    if (guidance.unsupported.length > 0) {
+      lines.push('### Unsupported Authentication Schemes');
+      lines.push('');
+      lines.push(
+        'The following authentication schemes require manual implementation:'
+      );
+      lines.push('');
+
+      for (const unsupported of guidance.unsupported) {
+        lines.push(`#### ${unsupported.name} (${unsupported.type})`);
+        lines.push('');
+        lines.push(`**Reason:** ${unsupported.reason}`);
+        lines.push('');
+        lines.push(`**Workaround:**`);
+        lines.push('```');
+        lines.push(unsupported.workaround);
+        lines.push('```');
+        lines.push('');
+      }
+    }
+
+    // Important warnings
+    if (guidance.warnings.length > 0) {
+      lines.push('### Important Notes');
+      lines.push('');
+      for (const warning of guidance.warnings) {
+        lines.push(`- ⚠️ ${warning}`);
+      }
+      lines.push('');
+    }
+
+    // Security best practices
+    lines.push('### Security Best Practices');
+    lines.push('');
+    lines.push('- **Never commit** your `.env` file to version control');
+    lines.push('- **Use strong credentials** and rotate them regularly');
+    lines.push('- **Limit credential scope** to minimum required permissions');
+    lines.push('- **Monitor access logs** for suspicious activity');
+    lines.push('- **Store credentials securely** using environment variables or secret management tools');
+    lines.push('');
+  }
 
   // Usage
   lines.push('## Usage');

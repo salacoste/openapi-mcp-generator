@@ -1,0 +1,146 @@
+/**
+ * Bearer Token Authentication Handler
+ *
+ * Automatically adds Bearer Token authentication (JWT/OAuth2) to HTTP requests.
+ * Adds Authorization header with "Bearer <token>" format.
+ *
+ * Generated from OpenAPI securitySchemes configuration.
+ *
+ * @module auth/bearer
+ */
+
+import type { InternalAxiosRequestConfig } from 'axios';
+import type { ServerConfig } from '../config.js';
+
+/**
+ * Add Bearer Token authentication to outgoing request
+ *
+ * Adds standard Authorization header with Bearer token format:
+ * `Authorization: Bearer <token>`
+ *
+ * @param {InternalAxiosRequestConfig} config - Axios request configuration
+ * @param {ServerConfig} serverConfig - Server configuration with bearer token
+ * @returns {InternalAxiosRequestConfig} Modified request config with auth
+ * @throws {Error} If bearer token is required but not configured
+ */
+export function addBearerAuth(
+  config: InternalAxiosRequestConfig,
+  serverConfig: ServerConfig
+): InternalAxiosRequestConfig {
+  const bearerToken = serverConfig.bearerToken;
+
+  // Validate bearer token is present if required
+  if (!bearerToken) {
+    throw new Error(
+      'Bearer Token authentication required but not configured. ' +
+      'Please set BEARER_TOKEN in your .env file.'
+    );
+  }
+
+  {{#if bearerFormat}}
+  // Validate token format: {{bearerFormat}}
+  {{#if (eq bearerFormat 'JWT')}}
+  if (!isValidJWT(bearerToken)) {
+    console.warn(
+      'Warning: BEARER_TOKEN does not appear to be a valid JWT format. ' +
+      'Expected format: header.payload.signature (xxx.yyy.zzz)'
+    );
+  }
+  {{/if}}
+  {{/if}}
+
+  // Add Authorization header with Bearer token
+  config.headers['Authorization'] = `Bearer ${bearerToken}`;
+
+  return config;
+}
+
+{{#if (eq bearerFormat 'JWT')}}
+/**
+ * Basic JWT format validation
+ *
+ * Checks if token has the standard JWT structure:
+ * - 3 parts separated by dots (header.payload.signature)
+ * - Each part is a non-empty base64-encoded string
+ *
+ * Note: This only validates structure, not signature or claims.
+ *
+ * @param {string} token - Bearer token to validate
+ * @returns {boolean} True if token appears to be valid JWT format
+ */
+function isValidJWT(token: string): boolean {
+  const parts = token.split('.');
+  return parts.length === 3 && parts.every(part => part.length > 0);
+}
+{{/if}}
+
+/**
+ * Validate Bearer Token configuration
+ *
+ * Ensures that required bearer token credentials are present in configuration.
+ * Throws a detailed error with setup instructions if validation fails.
+ *
+ * @param {ServerConfig} config - Server configuration to validate
+ * @throws {Error} If required bearer token is missing with setup instructions
+ */
+export function validateBearerConfig(config: ServerConfig): void {
+  {{#if bearerRequired}}
+  if (!config.bearerToken) {
+    throw new Error(
+      'Bearer Token authentication is required for this API.\n' +
+      '\n' +
+      'Please set the BEARER_TOKEN environment variable in your .env file:\n' +
+      '  BEARER_TOKEN=your-bearer-token-here\n' +
+      '\n' +
+      {{#if bearerFormat}}
+      'Expected format: {{bearerFormat}}\n' +
+      {{#if (eq bearerFormat 'JWT')}}
+      'Example: BEARER_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\n' +
+      {{/if}}
+      '\n' +
+      {{/if}}
+      {{#if bearerTokenDocUrl}}
+      'To obtain a bearer token, visit: {{bearerTokenDocUrl}}\n' +
+      '\n' +
+      {{/if}}
+      'See README.md for detailed configuration instructions.'
+    );
+  }
+  {{else}}
+  // Bearer token is optional for this API
+  {{/if}}
+}
+
+// =============================================================================
+// Token Refresh Placeholder
+// =============================================================================
+// TODO: Implement token refresh logic
+//
+// Token refresh would typically involve:
+// 1. Detecting 401 Unauthorized responses from API
+// 2. Calling refresh token endpoint with refresh token
+// 3. Updating stored bearer token with new access token
+// 4. Retrying the original failed request with new token
+// 5. Handling refresh token expiration
+//
+// Implementation example:
+//
+// export function setupTokenRefresh(client: AxiosInstance): void {
+//   client.interceptors.response.use(
+//     response => response,
+//     async error => {
+//       if (error.response?.status === 401) {
+//         const newToken = await refreshAccessToken();
+//         error.config.headers['Authorization'] = `Bearer ${newToken}`;
+//         return client.request(error.config);
+//       }
+//       return Promise.reject(error);
+//     }
+//   );
+// }
+//
+// async function refreshAccessToken(): Promise<string> {
+//   // Call refresh token endpoint
+//   // Return new access token
+// }
+// =============================================================================

@@ -17,16 +17,26 @@ import {
   CallToolRequestSchema,
   Tool,
 } from '@modelcontextprotocol/sdk/types.js';
-import * as dotenv from 'dotenv';
+import { loadConfig } from './config.js';
 {{#if hasAuthentication}}
 import { createHttpClient } from './http-client.js';
 {{/if}}
 
-// Load environment variables
-dotenv.config();
+// Load and validate configuration
+let config: ReturnType<typeof loadConfig>;
+
+try {
+  config = loadConfig();
+} catch (error) {
+  console.error('❌ Configuration Error:');
+  console.error(error instanceof Error ? error.message : String(error));
+  console.error('\nPlease check your .env file and ensure all required variables are set.');
+  console.error('See README.md for configuration instructions.');
+  process.exit(1);
+}
 
 // Debug logging utility
-const DEBUG = process.env.DEBUG === 'true';
+const DEBUG = config.debug;
 
 function log(message: string, ...args: unknown[]): void {
   if (DEBUG) {
@@ -58,11 +68,18 @@ async function main() {
   );
 
   {{#if hasAuthentication}}
-  // Initialize HTTP client with authentication
+  // Initialize HTTP client with configuration
   const httpClient = createHttpClient({
-    baseURL: process.env.API_BASE_URL || '{{primaryServer.url}}',
+    baseURL: config.baseURL,
+    timeout: config.timeout,
+    retryCount: config.retryAttempts,
+    retryDelay: config.retryDelay,
+    debug: config.debug,
+    {{#if (or hasApiKey hasBearerToken hasBasicAuth)}}
+    serverConfig: config,
+    {{/if}}
   });
-  log('HTTP client initialized with base URL:', process.env.API_BASE_URL || '{{primaryServer.url}}');
+  log('HTTP client initialized with base URL:', config.baseURL);
   {{/if}}
 
   // Register all API tools

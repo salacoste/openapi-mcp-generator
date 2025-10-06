@@ -32,6 +32,12 @@ export function generateResponseProcessing(operation: OperationMetadata): string
       const typedData = response;`);
   }
 
+  // Add null/undefined normalization
+  codeLines.push(generateNullHandling());
+
+  // Add array truncation for large responses
+  codeLines.push(generateArrayTruncation());
+
   // Add MCP response formatting
   codeLines.push(generateMCPFormatting());
 
@@ -87,7 +93,7 @@ function generateMCPFormatting(): string {
         content: [
           {
             type: 'text',
-            text: JSON.stringify(typedData, null, 2)
+            text: JSON.stringify(truncatedData, null, 2)
           }
         ]
       };`;
@@ -131,4 +137,67 @@ ${parameterMappingCode}
 ${responseProcessingCode}
 
 ${generateErrorHandling(operationId)}`;
+}
+
+/**
+ * Generate null/undefined handling code (AC7)
+ * Normalizes null and undefined values in response data
+ */
+function generateNullHandling(): string {
+  return `      // Normalize null and undefined values
+      const normalizedData = normalizeNullValues(typedData);
+
+      function normalizeNullValues(data: unknown): unknown {
+        if (data === null || data === undefined) {
+          return null;
+        }
+
+        if (Array.isArray(data)) {
+          return data.map(item => normalizeNullValues(item));
+        }
+
+        if (typeof data === 'object' && data !== null) {
+          const normalized: Record<string, unknown> = {};
+          for (const [key, value] of Object.entries(data)) {
+            normalized[key] = normalizeNullValues(value);
+          }
+          return normalized;
+        }
+
+        return data;
+      }`;
+}
+
+/**
+ * Generate array truncation code (AC8)
+ * Truncates large arrays to prevent context overflow
+ */
+function generateArrayTruncation(): string {
+  return `      // Truncate large arrays to prevent context overflow
+      const truncatedData = truncateArrays(normalizedData, 100);
+
+      function truncateArrays(data: unknown, maxItems = 100): unknown {
+        if (Array.isArray(data)) {
+          if (data.length > maxItems) {
+            const truncated = data.slice(0, maxItems);
+            return [...truncated.map(item => truncateArrays(item, maxItems)), {
+              _truncated: true,
+              _originalLength: data.length,
+              _remainingItems: data.length - maxItems,
+              _message: \`Array truncated: showing \${maxItems} of \${data.length} items\`
+            }];
+          }
+          return data.map(item => truncateArrays(item, maxItems));
+        }
+
+        if (typeof data === 'object' && data !== null) {
+          const truncated: Record<string, unknown> = {};
+          for (const [key, value] of Object.entries(data)) {
+            truncated[key] = truncateArrays(value, maxItems);
+          }
+          return truncated;
+        }
+
+        return data;
+      }`;
 }

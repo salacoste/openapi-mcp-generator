@@ -1,0 +1,404 @@
+# Security Best Practices
+
+**{{apiName}} MCP Server** - Generated Security Guide
+
+---
+
+## Credential Management
+
+### ⚠️ Never Commit Credentials
+
+**CRITICAL:** Never commit your `.env` file or API credentials to version control.
+
+- ✅ Always use `.env` for local credentials
+- ✅ Share `.env.example` (without real values) with your team
+- ✅ Verify `.env` is in `.gitignore` before committing
+- ❌ Never commit `.env` to git
+- ❌ Never hardcode credentials in source code
+
+### Environment Variables
+
+Store all credentials in environment variables:
+
+```bash
+# ✅ GOOD: Environment variable
+{{#if hasApiKey}}
+API_KEY=your-api-key-here
+{{/if}}
+{{#if hasBearerToken}}
+BEARER_TOKEN=your-bearer-token-here
+{{/if}}
+{{#if hasBasicAuth}}
+BASIC_AUTH_USERNAME=your-username
+BASIC_AUTH_PASSWORD=your-password
+{{/if}}
+
+# ❌ BAD: Hardcoded in source code
+const apiKey = "abc123";  // NEVER DO THIS
+```
+
+### Credential Rotation
+
+Rotate API credentials regularly to minimize security risks:
+
+1. **Generate New Credentials:**
+   - Log into your API provider dashboard
+   - Generate new API key/token
+   - Copy the new credentials
+
+2. **Update Environment:**
+   - Update `.env` file with new credentials
+   - For production, update secret manager (AWS Secrets Manager, Vault, etc.)
+
+3. **Restart Server:**
+   - Restart MCP server to load new credentials
+   - Verify authentication works with new credentials
+
+4. **Revoke Old Credentials:**
+   - Revoke old credentials in API provider dashboard
+   - Ensure no systems are still using old credentials
+
+**Recommended Frequency:**
+- Development: Every 90 days
+- Production: Every 30-60 days
+- Immediately if credentials are compromised
+
+---
+
+## Production Deployment
+
+For production deployments, **never use `.env` files**. Use secure secret management services:
+
+### AWS Secrets Manager
+
+```bash
+# Fetch secret from AWS Secrets Manager
+export API_KEY=$(aws secretsmanager get-secret-value \
+  --secret-id prod/{{apiName}}/api-key \
+  --query SecretString \
+  --output text)
+
+npm start
+```
+
+**Benefits:**
+- Automatic credential rotation
+- Audit logs for secret access
+- Encryption at rest and in transit
+- Fine-grained IAM permissions
+
+### HashiCorp Vault
+
+```bash
+# Fetch secret from Vault
+export API_KEY=$(vault kv get \
+  -field=api_key \
+  secret/{{apiName}}/prod)
+
+npm start
+```
+
+**Benefits:**
+- Dynamic secrets with TTL
+- Detailed audit trails
+- Secrets versioning
+- Multi-cloud support
+
+### Docker Secrets
+
+```bash
+# Use Docker secrets for containerized deployments
+docker service create \
+  --name {{apiName}}-mcp \
+  --secret api_key \
+  --env API_KEY_FILE=/run/secrets/api_key \
+  {{apiName}}-mcp-server
+```
+
+**Benefits:**
+- Encrypted during transit
+- Only available to specified services
+- Automatic rotation support
+- Kubernetes-compatible
+
+### Kubernetes Secrets
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{apiName}}-credentials
+type: Opaque
+data:
+{{#if hasApiKey}}
+  api-key: <base64-encoded-key>
+{{/if}}
+{{#if hasBearerToken}}
+  bearer-token: <base64-encoded-token>
+{{/if}}
+{{#if hasBasicAuth}}
+  username: <base64-encoded-username>
+  password: <base64-encoded-password>
+{{/if}}
+```
+
+---
+
+## Security Checklist
+
+Before deploying to production, verify all items:
+
+### Pre-Deployment
+
+- [ ] `.env` file is **NOT** committed to git
+- [ ] `.gitignore` includes `.env`
+- [ ] API credentials use **least privilege** (minimal required permissions)
+- [ ] **HTTPS** is used for all API communication (`{{primaryServer.url}}`)
+{{#if hasApiKey}}
+- [ ] API key has appropriate scopes/permissions
+{{/if}}
+{{#if hasBearerToken}}
+- [ ] Bearer token has expiration time set
+{{/if}}
+{{#if hasBasicAuth}}
+- [ ] Basic auth password meets complexity requirements
+{{/if}}
+- [ ] Credentials are stored in secure secret manager (not `.env` in production)
+- [ ] Debug logging is **disabled** in production (`DEBUG=false`)
+- [ ] Team members use **individual API keys** (not shared credentials)
+
+### Post-Deployment
+
+- [ ] Credentials are rotated regularly (30-90 day schedule)
+- [ ] Access logs are monitored for unusual activity
+- [ ] Unused/old credentials are revoked
+- [ ] Security incidents have defined response plan
+- [ ] Backup credentials are stored securely
+
+---
+
+## Logging Security
+
+### Safe Logging Practices
+
+The generated MCP server automatically masks credentials in logs. However, verify:
+
+```typescript
+// ✅ GOOD: Masked credentials
+console.log('Authentication applied: API Key');
+
+// ❌ BAD: Exposed credentials
+console.log(`API Key: ${apiKey}`);  // NEVER DO THIS
+```
+
+### Debug Mode Warning
+
+**Never enable debug mode in production:**
+
+```bash
+# ✅ GOOD: Production
+DEBUG=false
+
+# ❌ BAD: Debug in production exposes details
+DEBUG=true  # NEVER IN PRODUCTION
+```
+
+### Error Messages
+
+Ensure error messages don't expose credentials:
+
+```typescript
+// ✅ GOOD: Generic error
+throw new Error('Authentication failed (401 Unauthorized)');
+
+// ❌ BAD: Credential in error
+throw new Error(`Auth failed with key: ${apiKey}`);  // NEVER DO THIS
+```
+
+The generated interceptors automatically provide secure error messages.
+
+---
+
+## HTTPS Requirement
+
+**⚠️ CRITICAL: Always use HTTPS for API communication**
+
+### Why HTTPS is Required
+
+- Credentials transmitted over HTTP can be intercepted
+- HTTPS encrypts all traffic including headers and body
+- Prevents man-in-the-middle attacks
+- Industry standard for API communication
+
+### Configuration
+
+```bash
+# ✅ GOOD: HTTPS endpoint
+API_BASE_URL={{primaryServer.url}}
+
+# ❌ BAD: HTTP endpoint (insecure)
+API_BASE_URL=http://api.example.com  # NEVER DO THIS
+```
+
+### SSL Certificate Validation
+
+Ensure SSL certificates are validated:
+
+- Do not disable SSL verification in production
+- Use valid, trusted SSL certificates
+- Monitor certificate expiration dates
+
+---
+
+## Local Development
+
+### .env File Management
+
+1. **Copy Template:**
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Add Development Credentials:**
+   - Use development/sandbox credentials
+   - Never use production credentials locally
+
+3. **Keep .env Private:**
+   - Never share your `.env` file
+   - Never commit `.env` to git
+   - Use different credentials for dev/staging/prod
+
+### Team Collaboration
+
+**Share configuration template, NOT credentials:**
+
+```bash
+# ✅ GOOD: Share .env.example
+git add .env.example
+git commit -m "Update env template"
+git push
+
+# ❌ BAD: Share .env with credentials
+git add .env  # NEVER DO THIS
+```
+
+### Development Best Practices
+
+- Use separate API keys for each developer
+- Use development/sandbox API endpoints when available
+- Rotate development credentials regularly
+- Monitor usage to detect compromised keys
+
+---
+
+## Least Privilege Principle
+
+**Use minimal required permissions for all credentials:**
+
+### API Key Scopes
+
+{{#if hasApiKey}}
+1. Review available API key scopes/permissions
+2. Grant only necessary permissions for your use case
+3. Avoid admin or full-access keys
+4. Create separate keys for different operations
+{{/if}}
+
+### Multiple Environments
+
+Create separate credentials for each environment:
+
+- **Development:** Limited scope, sandbox data
+- **Staging:** Production-like, separate credentials
+- **Production:** Minimal privileges, production data
+
+### Credential Lifecycle
+
+1. **Creation:** Minimal required scopes
+2. **Usage:** Monitor for privilege escalation needs
+3. **Review:** Audit permissions quarterly
+4. **Revocation:** Remove immediately when no longer needed
+
+---
+
+## Security Incident Response
+
+If credentials are compromised or suspected to be compromised:
+
+### Immediate Actions (0-15 minutes)
+
+1. **Revoke Compromised Credentials:**
+   - Log into API provider dashboard
+   - Immediately revoke/delete compromised credentials
+   - Document when and how compromise occurred
+
+2. **Rotate All Related Credentials:**
+   - Generate new credentials
+   - Update all systems using old credentials
+   - Test that new credentials work
+
+### Follow-up Actions (1-24 hours)
+
+3. **Audit Access Logs:**
+   - Review API access logs for unauthorized usage
+   - Identify any data accessed by compromised credentials
+   - Document extent of potential breach
+
+4. **Update Systems:**
+   - Update `.env` files with new credentials
+   - Update secret managers (AWS Secrets Manager, Vault, etc.)
+   - Restart all MCP server instances
+
+5. **Communication:**
+   - Notify security team
+   - If customer data accessed, follow breach notification procedures
+   - Document incident for post-mortem
+
+### Prevention (Ongoing)
+
+6. **Root Cause Analysis:**
+   - Determine how credentials were compromised
+   - Implement controls to prevent recurrence
+   - Update security procedures
+
+7. **Monitoring:**
+   - Set up alerts for unusual API usage patterns
+   - Monitor for credential exposure in public repositories
+   - Regular security audits
+
+---
+
+## External Resources
+
+### Security Standards
+
+- [OWASP API Security Top 10](https://owasp.org/www-project-api-security/) - Industry-standard API security risks
+- [NIST Password Guidelines](https://pages.nist.gov/800-63-3/) - Password and credential management best practices
+- [12-Factor App Config](https://12factor.net/config) - Environment-based configuration principles
+
+### Secret Management
+
+- [AWS Secrets Manager Best Practices](https://docs.aws.amazon.com/secretsmanager/latest/userguide/best-practices.html)
+- [HashiCorp Vault Documentation](https://www.vaultproject.io/docs)
+- [Kubernetes Secrets](https://kubernetes.io/docs/concepts/configuration/secret/)
+
+### Additional Reading
+
+- [GitHub Secret Scanning](https://docs.github.com/en/code-security/secret-scanning) - Prevent credential commits
+- [OWASP Credential Stuffing](https://owasp.org/www-community/attacks/Credential_stuffing) - Attack prevention
+- [CIS Benchmarks](https://www.cisecurity.org/cis-benchmarks/) - Security configuration standards
+
+---
+
+## Questions or Issues?
+
+If you have security concerns or questions:
+
+1. **Security Issues:** Report via your organization's security team
+2. **Best Practices:** Consult OWASP and NIST guidelines above
+3. **Tool Issues:** Check [MCP SDK documentation](https://github.com/modelcontextprotocol/sdk)
+
+---
+
+**Generated with [OpenAPI-to-MCP Generator](https://github.com/openapi-to-mcp)**
+**Last Updated:** {{generatedAt}}

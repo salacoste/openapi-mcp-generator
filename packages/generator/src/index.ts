@@ -42,4 +42,7 @@ export * from './utils/logger.js';
 // Validation Reporter
 export * from './validation-reporter.js';
 
+// Security Analyzer (Story 4.6)
+export * from './security-analyzer.js';
+
 export const version = '0.1.0';

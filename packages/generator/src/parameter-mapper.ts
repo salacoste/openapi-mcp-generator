@@ -224,8 +224,8 @@ function generateTypeCoercion(param: ParameterMetadata): string {
       return `(typeof ${paramName} === 'string' ? ${paramName} === 'true' : ${paramName})`;
 
     case 'array':
-      // Arrays should be passed as-is, axios will handle serialization
-      return paramName;
+      // For arrays, apply serialization based on OpenAPI style parameter
+      return generateArraySerialization(param);
 
     case 'object':
       return paramName;
@@ -233,6 +233,44 @@ function generateTypeCoercion(param: ParameterMetadata): string {
     default:
       return paramName;
   }
+}
+
+/**
+ * Generate array serialization code based on OpenAPI style parameter
+ * Supports: form (default), spaceDelimited, pipeDelimited
+ */
+function generateArraySerialization(param: ParameterMetadata): string {
+  const paramName = `args.${param.name}`;
+  const style = param.style || 'form';
+  const explode = param.explode !== false; // Default is true per OpenAPI spec
+
+  // For query parameters, we need to handle different serialization styles
+  if (param.in === 'query') {
+    switch (style) {
+      case 'spaceDelimited':
+        // Space delimited: ?tags=tag1 tag2 tag3
+        return `(Array.isArray(${paramName}) ? ${paramName}.join(' ') : ${paramName})`;
+
+      case 'pipeDelimited':
+        // Pipe delimited: ?tags=tag1|tag2|tag3
+        return `(Array.isArray(${paramName}) ? ${paramName}.join('|') : ${paramName})`;
+
+      case 'form':
+      default:
+        // Form style with explode (default): ?tags=tag1&tags=tag2&tags=tag3
+        // Form style without explode: ?tags=tag1,tag2,tag3
+        if (explode) {
+          // Axios handles exploded arrays natively when passed as array
+          return paramName;
+        } else {
+          // Join with comma for non-exploded form style
+          return `(Array.isArray(${paramName}) ? ${paramName}.join(',') : ${paramName})`;
+        }
+    }
+  }
+
+  // For non-query parameters (headers, path), default to comma-separated
+  return `(Array.isArray(${paramName}) ? ${paramName}.join(',') : ${paramName})`;
 }
 
 /**

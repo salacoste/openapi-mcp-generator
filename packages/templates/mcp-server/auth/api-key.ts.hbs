@@ -1,0 +1,112 @@
+/**
+ * API Key Authentication Handler
+ *
+ * Automatically adds API key authentication to HTTP requests.
+ * Supports header, query parameter, and cookie-based API keys.
+ *
+ * Generated from OpenAPI securitySchemes configuration.
+ *
+ * @module auth/api-key
+ */
+
+import type { InternalAxiosRequestConfig } from 'axios';
+import type { ServerConfig } from '../config.js';
+
+/**
+ * API Key configuration interface
+ * Defines how and where to apply API key authentication
+ */
+export interface ApiKeyConfig {
+  /** Name of the header, query param, or cookie */
+  name: string;
+  /** Location where API key should be added */
+  in: 'header' | 'query' | 'cookie';
+  /** The API key value */
+  value: string;
+}
+
+/**
+ * Add API Key authentication to outgoing request
+ *
+ * Modifies the Axios request configuration to include API key authentication
+ * based on the OpenAPI security scheme definitions.
+ *
+ * @param {InternalAxiosRequestConfig} config - Axios request configuration
+ * @param {ServerConfig} serverConfig - Server configuration with API key
+ * @returns {InternalAxiosRequestConfig} Modified request config with auth
+ * @throws {Error} If API key is required but not configured
+ */
+export function addApiKeyAuth(
+  config: InternalAxiosRequestConfig,
+  serverConfig: ServerConfig
+): InternalAxiosRequestConfig {
+  const apiKey = serverConfig.apiKey;
+
+  // Validate API key is present if required
+  if (!apiKey) {
+    throw new Error(
+      'API Key authentication required but not configured. ' +
+      'Please set API_KEY in your .env file.'
+    );
+  }
+
+  {{#if apiKeySchemes}}
+  {{#each apiKeySchemes}}
+  // Security Scheme: {{schemeName}}
+  {{#if description}}
+  // {{description}}
+  {{/if}}
+  {{#if (eq in 'header')}}
+  // Add API key to header: {{name}}
+  config.headers['{{name}}'] = apiKey;
+  {{/if}}
+  {{#if (eq in 'query')}}
+  // Add API key to query parameter: {{name}}
+  if (!config.params) {
+    config.params = {};
+  }
+  config.params['{{name}}'] = apiKey;
+  {{/if}}
+  {{#if (eq in 'cookie')}}
+  // Add API key to cookie: {{name}}
+  const existingCookie = config.headers['Cookie'] || '';
+  const newCookie = existingCookie
+    ? `${existingCookie}; {{name}}=${apiKey}`
+    : `{{name}}=${apiKey}`;
+  config.headers['Cookie'] = newCookie;
+  {{/if}}
+  {{/each}}
+  {{/if}}
+
+  return config;
+}
+
+/**
+ * Validate API Key configuration
+ *
+ * Ensures that required API key credentials are present in configuration.
+ * Throws a detailed error with setup instructions if validation fails.
+ *
+ * @param {ServerConfig} config - Server configuration to validate
+ * @throws {Error} If required API key is missing with setup instructions
+ */
+export function validateApiKeyConfig(config: ServerConfig): void {
+  {{#if apiKeyRequired}}
+  if (!config.apiKey) {
+    throw new Error(
+      'API Key authentication is required for this API.\n' +
+      '\n' +
+      'Please set the API_KEY environment variable in your .env file:\n' +
+      '  API_KEY=your-api-key-here\n' +
+      '\n' +
+      {{#if apiKeyDocUrl}}
+      'To obtain an API key, visit: {{apiKeyDocUrl}}\n' +
+      {{/if}}
+      '\n' +
+      'See README.md for detailed configuration instructions.'
+    );
+  }
+  {{else}}
+  // API key is optional for this API
+  {{/if}}
+}
