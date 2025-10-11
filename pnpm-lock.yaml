@@ -159,8 +159,8 @@ importers:
         version: 4.1.0
     devDependencies:
       '@types/js-yaml':
-        specifier: 4.0.5
-        version: 4.0.5
+        specifier: 4.0.9
+        version: 4.0.9
       '@types/node':
         specifier: 20.10.0
         version: 20.10.0
@@ -772,8 +772,8 @@ packages:
   '@types/istanbul-lib-coverage@2.0.6':
     resolution: {integrity: sha512-2QF/t/auWm0lsy8XtKVPG19v3sSOQlJe/YHZgfjb/KBBHOGSV+J2q/S671rcq9uTBrLAXmZpqJiaQbMT+zNU1w==}
 
-  '@types/js-yaml@4.0.5':
-    resolution: {integrity: sha512-FhpRzf927MNQdRZP0J5DLIdTXhjLYzeUTmLAu69mnVksLH9CJY3IuSeEgbKUki7GQZm0WqDkGzyxju2EZGD2wA==}
+  '@types/js-yaml@4.0.9':
+    resolution: {integrity: sha512-k4MGaQl5TGo/iipqb2UDG2UwjXziSWkh0uysQelTlJpX1qGlpUZYm8PnO4DxG1qBomtJUdYJ6qR6xdIah10JLg==}
 
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
@@ -2451,7 +2451,7 @@ snapshots:
 
   '@types/istanbul-lib-coverage@2.0.6': {}
 
-  '@types/js-yaml@4.0.5': {}
+  '@types/js-yaml@4.0.9': {}
 
   '@types/json-schema@7.0.15': {}
 
@@ -2616,7 +2616,7 @@ snapshots:
       pathe: 1.1.2
       picocolors: 1.1.1
       sirv: 2.0.4
-      vitest: 1.2.0(@types/node@20.19.19)(@vitest/ui@1.2.0)
+      vitest: 1.2.0(@types/node@20.10.0)(@vitest/ui@1.2.0)
 
   '@vitest/utils@1.2.0':
     dependencies:
