@@ -57,13 +57,8 @@ export interface ParameterMetadata {
   required: boolean;
   /** Parameter description */
   description?: string;
-  /** Parameter schema/type */
-  schema?: {
-    type: string;
-    format?: string;
-    enum?: (string | number)[];
-    default?: unknown;
-  };
+  /** Parameter schema/type (supports full OpenAPI schema properties) */
+  schema?: Record<string, unknown>;
   /** Style for array parameters */
   style?: string;
   /** Explode flag for array parameters */
@@ -80,8 +75,10 @@ export interface RequestBodyMetadata {
   description?: string;
   /** Media type (e.g., application/json) */
   mediaType: string;
-  /** Schema name reference */
+  /** Schema name reference (if schema is in SchemaMap) */
   schemaName?: string;
+  /** Inline expanded schema (if schema was dereferenced inline) */
+  schema?: Record<string, unknown>;
 }
 
 /**

@@ -10,7 +10,7 @@
  */
 export function log(message: string, ...args: unknown[]): void {
   if (process.env.VERBOSE === 'true') {
-    // eslint-disable-next-line no-console -- Allowed for verbose CLI output
+     
     console.log(`[generator] ${message}`, ...args);
   }
 }

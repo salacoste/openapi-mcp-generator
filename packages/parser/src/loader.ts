@@ -209,7 +209,7 @@ export async function loadOpenAPIDocument(
   let content: string;
   try {
     content = await readFile(absolutePath, 'utf-8');
-  } catch (error) {
+  } catch {
     throw new FileSystemError(`Failed to read file: ${absolutePath}`, absolutePath);
   }
 

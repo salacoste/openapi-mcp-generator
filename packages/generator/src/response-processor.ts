@@ -25,8 +25,8 @@ export function generateResponseProcessing(operation: OperationMetadata): string
 
   // Add type casting if schema available
   if (hasTypeCasting && successSchema?.typeName) {
-    codeLines.push(`      // Type cast response to generated interface
-      const typedData = response as ${successSchema.typeName};`);
+    codeLines.push(`      // Response data (schema: ${successSchema.typeName})
+      const typedData = response;`);
   } else {
     codeLines.push(`      // No schema defined, use raw response
       const typedData = response;`);
@@ -39,7 +39,7 @@ export function generateResponseProcessing(operation: OperationMetadata): string
   codeLines.push(generateArrayTruncation());
 
   // Add MCP response formatting
-  codeLines.push(generateMCPFormatting());
+  codeLines.push(generateMCPFormatting(operation));
 
   return codeLines.join('\n\n');
 }
@@ -87,7 +87,28 @@ function getSuccessResponseSchema(operation: OperationMetadata): ResponseSchema 
 /**
  * Generate MCP response formatting code
  */
-function generateMCPFormatting(): string {
+function generateMCPFormatting(operation: OperationMetadata): string {
+  const hasCSVResponse = checkCSVResponse(operation);
+  const hasTextResponse = checkTextResponse(operation);
+
+  if (hasCSVResponse || hasTextResponse) {
+    return `      // Format text/CSV response for MCP protocol (preserve raw text)
+      const isTextResponse = typeof response === 'string' ||
+                             response?.headers?.['content-type']?.includes('text/');
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: isTextResponse
+              ? String(response.data || response)
+              : JSON.stringify(truncatedData, null, 2)
+          }
+        ]
+      };`;
+  }
+
+  // Default JSON formatting (existing code)
   return `      // Format response for MCP protocol
       return {
         content: [
@@ -100,12 +121,42 @@ function generateMCPFormatting(): string {
 }
 
 /**
+ * Check if operation has CSV response
+ */
+function checkCSVResponse(operation: OperationMetadata): boolean {
+  if (!operation.responses) return false;
+
+  for (const response of operation.responses) {
+    if (response.mediaType === 'text/csv') {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Check if operation has any text/* response
+ */
+function checkTextResponse(operation: OperationMetadata): boolean {
+  if (!operation.responses) return false;
+
+  for (const response of operation.responses) {
+    if (response.mediaType && response.mediaType.startsWith('text/')) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Generate error handling wrapper code
  */
 export function generateErrorHandling(operationId: string): string {
-  return `      } catch (error: unknown) {
+  return `      } catch (error) {
         // Enhanced error handling with operation context
-        const err = error as { message?: string; statusCode?: number; response?: unknown };
+        const err = error;
 
         const errorResponse = {
           error: true,
@@ -116,7 +167,7 @@ export function generateErrorHandling(operationId: string): string {
         };
 
         if (err.response) {
-          (errorResponse as { details?: unknown }).details = err.response;
+          errorResponse.details = err.response;
         }
 
         throw errorResponse;
@@ -147,7 +198,7 @@ function generateNullHandling(): string {
   return `      // Normalize null and undefined values
       const normalizedData = normalizeNullValues(typedData);
 
-      function normalizeNullValues(data: unknown): unknown {
+      function normalizeNullValues(data) {
         if (data === null || data === undefined) {
           return null;
         }
@@ -157,7 +208,7 @@ function generateNullHandling(): string {
         }
 
         if (typeof data === 'object' && data !== null) {
-          const normalized: Record<string, unknown> = {};
+          const normalized = {};
           for (const [key, value] of Object.entries(data)) {
             normalized[key] = normalizeNullValues(value);
           }
@@ -176,7 +227,7 @@ function generateArrayTruncation(): string {
   return `      // Truncate large arrays to prevent context overflow
       const truncatedData = truncateArrays(normalizedData, 100);
 
-      function truncateArrays(data: unknown, maxItems = 100): unknown {
+      function truncateArrays(data, maxItems = 100) {
         if (Array.isArray(data)) {
           if (data.length > maxItems) {
             const truncated = data.slice(0, maxItems);
@@ -191,7 +242,7 @@ function generateArrayTruncation(): string {
         }
 
         if (typeof data === 'object' && data !== null) {
-          const truncated: Record<string, unknown> = {};
+          const truncated = {};
           for (const [key, value] of Object.entries(data)) {
             truncated[key] = truncateArrays(value, maxItems);
           }

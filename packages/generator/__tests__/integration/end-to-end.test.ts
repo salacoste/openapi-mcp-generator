@@ -237,22 +237,25 @@ describe('End-to-End MCP Server Generation', () => {
         if (match) {
           const coverage = parseFloat(match[1]);
 
-          // Current coverage is ~87%, target is 95%
-          // This test documents the gap and will fail when we improve code generation
-          expect(coverage).toBeGreaterThan(85); // Baseline
+          // P2.4: Type coverage improvement from 87% to 95%+
+          // Generated code now has explicit types on all functions
+          expect(coverage).toBeGreaterThanOrEqual(95); // Target achieved
 
           if (coverage < 95) {
-            // eslint-disable-next-line no-console
+
             console.warn(
               `⚠️  Type coverage is ${coverage}%, below 95% target. Generated code needs improvement.`
             );
+          } else {
+
+            console.log(`✅ Type coverage: ${coverage}% (target: ≥95%)`);
           }
         }
       } catch (error) {
         const err = error as Error & { stdout?: string; stderr?: string };
         // If type-coverage not available, skip gracefully
         if (err.message?.includes('type-coverage')) {
-          // eslint-disable-next-line no-console
+           
           console.warn('type-coverage not available, skipping test');
           return;
         }

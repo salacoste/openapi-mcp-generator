@@ -94,7 +94,7 @@ export function extractBasePath(url: string): string {
 
     // Default to '/' if no path
     return path || '/';
-  } catch (error) {
+  } catch {
     // Invalid URL or relative URL
     return '/';
   }
@@ -162,12 +162,12 @@ export function inferServerEnvironment(
   }
 
   // Check for explicit 'local' keyword
-  if (combined.includes('local')) return 'local';
+  if (combined.includes('local')) {return 'local';}
 
   // Other environment checks
-  if (combined.includes('prod')) return 'production';
-  if (combined.includes('staging') || combined.includes('stg')) return 'staging';
-  if (combined.includes('dev') || combined.includes('development')) return 'development';
+  if (combined.includes('prod')) {return 'production';}
+  if (combined.includes('staging') || combined.includes('stg')) {return 'staging';}
+  if (combined.includes('dev') || combined.includes('development')) {return 'development';}
 
   return 'unknown';
 }
@@ -219,7 +219,7 @@ function validateServerOutput(
     if (server.baseURL) {
       try {
         new URL(server.baseURL);
-      } catch (error) {
+      } catch {
         warnings.push(
           `Server URL '${server.baseURL}' is not a valid URL. ` +
           `Requests may fail without a valid base URL.`

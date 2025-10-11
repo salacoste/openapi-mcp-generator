@@ -121,7 +121,7 @@ describe('Security Extractor', () => {
   });
 
   describe('OAuth2 Schemes', () => {
-    it('should extract OAuth2 scheme with flows', () => {
+    it('should extract OAuth2 Authorization Code flow with PKCE recommendation', () => {
       const scheme = {
         type: 'oauth2',
         flows: {
@@ -140,12 +140,25 @@ describe('Security Extractor', () => {
 
       expect(result.classification).toBe('oauth2');
       expect(result.type).toBe('oauth2');
-      expect(result.supported).toBe(false);
+      expect(result.supported).toBe(true); // Epic 8: OAuth now supported
+      expect(result.metadata).toHaveProperty('flows');
+      expect(result.metadata).toHaveProperty('primaryFlow');
+
+      const metadata = result.metadata as any;
+      expect(metadata.primaryFlow?.type).toBe('authorizationCode');
+      expect(metadata.primaryFlow?.tokenUrl).toBe('https://example.com/oauth/token');
+      expect(metadata.primaryFlow?.authorizationUrl).toBe('https://example.com/oauth/authorize');
+      expect(metadata.primaryFlow?.scopes).toEqual({
+        'read:users': 'Read user data',
+        'write:users': 'Write user data'
+      });
+
+      // Should recommend PKCE
       expect(result.warnings).toBeDefined();
-      expect(result.warnings?.[0]).toContain('OAuth2 scheme \'oauth2\' requires manual implementation');
+      expect(result.warnings?.some(w => w.includes('PKCE'))).toBe(true);
     });
 
-    it('should extract OAuth2 client credentials flow', () => {
+    it('should extract OAuth2 Client Credentials flow', () => {
       const scheme = {
         type: 'oauth2',
         flows: {
@@ -161,7 +174,180 @@ describe('Security Extractor', () => {
       const result = classifySecurityScheme('oauth2ClientCreds', scheme);
 
       expect(result.classification).toBe('oauth2');
+      expect(result.supported).toBe(true);
       expect(result.metadata).toHaveProperty('flows');
+
+      const metadata = result.metadata as any;
+      expect(metadata.primaryFlow?.type).toBe('clientCredentials');
+      expect(metadata.primaryFlow?.tokenUrl).toBe('https://example.com/oauth/token');
+      expect(metadata.primaryFlow?.scopes).toEqual({ 'api:access': 'API access' });
+    });
+
+    it('should extract OAuth2 with explicit PKCE requirement', () => {
+      const scheme = {
+        type: 'oauth2',
+        flows: {
+          authorizationCode: {
+            authorizationUrl: 'https://example.com/oauth/authorize',
+            tokenUrl: 'https://example.com/oauth/token',
+            scopes: { profile: 'User profile' },
+            'x-pkce-required': true
+          }
+        }
+      };
+
+      const result = classifySecurityScheme('oauth2Pkce', scheme);
+
+      const metadata = result.metadata as any;
+      expect(metadata.primaryFlow?.pkce).toBe(true);
+    });
+
+    it('should detect PKCE from description', () => {
+      const scheme = {
+        type: 'oauth2',
+        flows: {
+          authorizationCode: {
+            authorizationUrl: 'https://example.com/oauth/authorize',
+            tokenUrl: 'https://example.com/oauth/token',
+            scopes: {},
+            description: 'Authorization Code flow with PKCE required'
+          }
+        }
+      };
+
+      const result = classifySecurityScheme('oauth2PkceDesc', scheme);
+
+      const metadata = result.metadata as any;
+      expect(metadata.primaryFlow?.pkce).toBe(true);
+    });
+
+    it('should handle multiple OAuth2 flows', () => {
+      const scheme = {
+        type: 'oauth2',
+        flows: {
+          clientCredentials: {
+            tokenUrl: 'https://example.com/oauth/token',
+            scopes: { 'api:access': 'API access' }
+          },
+          authorizationCode: {
+            authorizationUrl: 'https://example.com/oauth/authorize',
+            tokenUrl: 'https://example.com/oauth/token',
+            scopes: { profile: 'User profile' }
+          }
+        }
+      };
+
+      const result = classifySecurityScheme('oauth2Multi', scheme);
+
+      const metadata = result.metadata as any;
+      expect(metadata.primaryFlow?.type).toBe('clientCredentials'); // Highest priority
+      expect(metadata.additionalFlows).toBeDefined();
+      expect(metadata.additionalFlows).toHaveLength(1);
+      expect(metadata.additionalFlows?.[0].type).toBe('authorizationCode');
+    });
+
+    it('should warn about deprecated Implicit flow', () => {
+      const scheme = {
+        type: 'oauth2',
+        flows: {
+          implicit: {
+            authorizationUrl: 'https://example.com/oauth/authorize',
+            scopes: { profile: 'User profile' }
+          }
+        }
+      };
+
+      const result = classifySecurityScheme('oauth2Implicit', scheme);
+
+      expect(result.warnings).toBeDefined();
+      expect(result.warnings?.some(w => w.includes('deprecated'))).toBe(true);
+
+      const metadata = result.metadata as any;
+      expect(metadata.primaryFlow?.type).toBe('implicit');
+    });
+
+    it('should warn about discouraged Password flow', () => {
+      const scheme = {
+        type: 'oauth2',
+        flows: {
+          password: {
+            tokenUrl: 'https://example.com/oauth/token',
+            scopes: {}
+          }
+        }
+      };
+
+      const result = classifySecurityScheme('oauth2Password', scheme);
+
+      expect(result.warnings).toBeDefined();
+      expect(result.warnings?.some(w => w.includes('discouraged'))).toBe(true);
+
+      const metadata = result.metadata as any;
+      expect(metadata.primaryFlow?.type).toBe('password');
+    });
+
+    it('should extract real Ozon Performance API OAuth scheme', () => {
+      const scheme = {
+        type: 'oauth2',
+        flows: {
+          clientCredentials: {
+            tokenUrl: 'https://performance.ozon.ru/api/client/token',
+            scopes: {}
+          }
+        }
+      };
+
+      const result = classifySecurityScheme('oauth2ClientCredentials', scheme);
+
+      expect(result.classification).toBe('oauth2');
+      expect(result.supported).toBe(true);
+
+      const metadata = result.metadata as any;
+      expect(metadata.primaryFlow?.type).toBe('clientCredentials');
+      expect(metadata.primaryFlow?.tokenUrl).toBe('https://performance.ozon.ru/api/client/token');
+      expect(metadata.primaryFlow?.scopes).toEqual({});
+    });
+
+    it('should throw error if no flows defined', () => {
+      const scheme = {
+        type: 'oauth2',
+        flows: {}
+      };
+
+      expect(() => classifySecurityScheme('oauth2NoFlows', scheme)).toThrow('no valid flows defined');
+    });
+
+    it('should warn about missing tokenUrl', () => {
+      const scheme = {
+        type: 'oauth2',
+        flows: {
+          clientCredentials: {
+            scopes: {}
+          }
+        }
+      };
+
+      const result = classifySecurityScheme('oauth2NoToken', scheme);
+
+      expect(result.warnings).toBeDefined();
+      expect(result.warnings?.some(w => w.includes('missing tokenUrl'))).toBe(true);
+    });
+
+    it('should warn about missing authorizationUrl for Authorization Code flow', () => {
+      const scheme = {
+        type: 'oauth2',
+        flows: {
+          authorizationCode: {
+            tokenUrl: 'https://example.com/oauth/token',
+            scopes: {}
+          }
+        }
+      };
+
+      const result = classifySecurityScheme('oauth2NoAuthUrl', scheme);
+
+      expect(result.warnings).toBeDefined();
+      expect(result.warnings?.some(w => w.includes('missing authorizationUrl'))).toBe(true);
     });
   });
 

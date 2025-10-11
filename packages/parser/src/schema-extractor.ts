@@ -82,13 +82,13 @@ export function extractSchemas(document: OpenAPI.Document): SchemaMap {
  */
 function extractInlineSchemas(paths: Record<string, unknown>, schemaMap: SchemaMap): void {
   for (const [path, pathItem] of Object.entries(paths)) {
-    if (!pathItem || typeof pathItem !== 'object') continue;
+    if (!pathItem || typeof pathItem !== 'object') {continue;}
 
     const methods = ['get', 'post', 'put', 'patch', 'delete', 'options', 'head'];
 
     for (const method of methods) {
       const operation = (pathItem as Record<string, unknown>)[method];
-      if (!operation || typeof operation !== 'object') continue;
+      if (!operation || typeof operation !== 'object') {continue;}
 
       const op = operation as Record<string, unknown>;
 
@@ -252,7 +252,7 @@ function normalizeAllOf(
 
   // Merge all schemas
   for (const item of allOfArray) {
-    if (!item || typeof item !== 'object') continue;
+    if (!item || typeof item !== 'object') {continue;}
     const schema = item as Record<string, unknown>;
 
     // Merge properties
@@ -308,7 +308,7 @@ function normalizeOneOf(
   // Extract each option as a separate schema
   for (let i = 0; i < oneOfArray.length; i++) {
     const option = oneOfArray[i];
-    if (!option || typeof option !== 'object') continue;
+    if (!option || typeof option !== 'object') {continue;}
 
     const optionName = `${name}Option${i + 1}`;
     const normalized = normalizeSchema(option as Record<string, unknown>, optionName, schemaMap, 0);
@@ -421,11 +421,11 @@ function normalizePrimitiveSchema(schema: Record<string, unknown>, name: string)
   const constraints: SchemaConstraints = {};
 
   // Extract constraints
-  if (schema.minLength !== undefined) constraints.minLength = schema.minLength as number;
-  if (schema.maxLength !== undefined) constraints.maxLength = schema.maxLength as number;
-  if (schema.pattern !== undefined) constraints.pattern = schema.pattern as string;
-  if (schema.minimum !== undefined) constraints.minimum = schema.minimum as number;
-  if (schema.maximum !== undefined) constraints.maximum = schema.maximum as number;
+  if (schema.minLength !== undefined) {constraints.minLength = schema.minLength as number;}
+  if (schema.maxLength !== undefined) {constraints.maxLength = schema.maxLength as number;}
+  if (schema.pattern !== undefined) {constraints.pattern = schema.pattern as string;}
+  if (schema.minimum !== undefined) {constraints.minimum = schema.minimum as number;}
+  if (schema.maximum !== undefined) {constraints.maximum = schema.maximum as number;}
 
   return {
     name,
@@ -449,11 +449,11 @@ function extractPropertyMetadata(
   const constraints: PropertyConstraints = {};
 
   // Extract constraints
-  if (property.minLength !== undefined) constraints.minLength = property.minLength as number;
-  if (property.maxLength !== undefined) constraints.maxLength = property.maxLength as number;
-  if (property.pattern !== undefined) constraints.pattern = property.pattern as string;
-  if (property.minimum !== undefined) constraints.minimum = property.minimum as number;
-  if (property.maximum !== undefined) constraints.maximum = property.maximum as number;
+  if (property.minLength !== undefined) {constraints.minLength = property.minLength as number;}
+  if (property.maxLength !== undefined) {constraints.maxLength = property.maxLength as number;}
+  if (property.pattern !== undefined) {constraints.pattern = property.pattern as string;}
+  if (property.minimum !== undefined) {constraints.minimum = property.minimum as number;}
+  if (property.maximum !== undefined) {constraints.maximum = property.maximum as number;}
 
   return {
     type: (property.type as string) || 'any',

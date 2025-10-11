@@ -28,12 +28,16 @@ export async function generateMCPServer(
 
     // Step 1: Parse OpenAPI document
     log('Step 1: Parsing OpenAPI document...');
-    const parseResult: ParseResult = await parseOpenAPIDocument(options.openApiPath);
+    const parseResult: ParseResult = await parseOpenAPIDocument(
+      options.openApiPath,
+      { skipValidation: options.skipValidation }
+    );
 
     log(`Parsed ${parseResult.metadata.operationCount} operations from ${parseResult.metadata.apiName}`);
 
     // Step 2: Scaffold project structure
     log('Step 2: Scaffolding project structure...');
+
     await scaffoldProject({
       outputDir: options.outputDir,
       apiName: parseResult.document.info.title,
@@ -43,13 +47,15 @@ export async function generateMCPServer(
       license: options.license || 'MIT',
       author: options.author,
       repository: options.repository,
-      securitySchemes: Object.entries(parseResult.security.schemes).map(([name, scheme]) => ({
-        name,
-        type: scheme.type,
-        classification: scheme.classification,
-        supported: scheme.supported,
-        metadata: scheme.metadata,
-      })),
+      securitySchemes: Object.entries(parseResult.security.schemes).map(([name, scheme]) => {
+        return {
+          name,
+          type: scheme.type,
+          classification: scheme.classification,
+          supported: scheme.supported,
+          metadata: scheme.metadata,
+        };
+      }),
       tags: parseResult.tags.tags.map((tag) => ({
         name: tag.name,
         pascalName: tag.name,
@@ -70,8 +76,7 @@ export async function generateMCPServer(
       schemaRecord[name] = schema;
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const interfaceResult = generateInterfaces(schemaRecord as any, {
+    const interfaceResult = generateInterfaces(schemaRecord, {
       includeComments: true,
       includeExamples: false,
       exportAll: true,
@@ -85,7 +90,7 @@ export async function generateMCPServer(
     // Step 4: Generate MCP tools
     log('Step 4: Generating MCP tools...');
 
-    const toolResult = generateToolDefinitions(parseResult.operations, {
+    const toolResult = generateToolDefinitions(parseResult.operations, parseResult.schemas, {
       includeTags: true,
       includeSecurity: true,
       generateExecuteCode: true,
@@ -111,17 +116,52 @@ export const tools: Tool[] = [
 ${toolResult.tools.map((tool) => `  ${tool.name}Tool`).join(',\n')}
 ];
 
-// Simple execute tool function
-export async function executeTool(name: string, args: Record<string, unknown>) {
-  // Tool execution logic will be implemented based on tool definitions
-  return {
-    content: [
-      {
-        type: 'text',
-        text: \`Tool \${name} executed with args: \${JSON.stringify(args)}\`,
-      },
-    ],
-  };
+// Tool execution map for fast lookup
+const toolMap = new Map<string, Tool>(tools.map(tool => [tool.name, tool]));
+
+/**
+ * Execute tool by name with dynamic code execution
+ */
+export async function executeTool(
+  name: string,
+  args: Record<string, unknown>
+): Promise<{ content: Array<{ type: string; text: string }> }> {
+  const tool = toolMap.get(name);
+
+  if (!tool) {
+    throw new Error(\`Tool not found: \${name}\`);
+  }
+
+  if (!tool.executeCode) {
+    throw new Error(\`Tool \${name} has no executable code\`);
+  }
+
+  try {
+    // Create execution context with HTTP client
+    const client = httpClient;
+
+    // Execute the tool's code dynamically using Function constructor
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval
+    const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+    const executor = new AsyncFunction('client', 'args', tool.executeCode) as (client: typeof httpClient, args: Record<string, unknown>) => Promise<{ content: Array<{ type: string; text: string }> }>;
+
+    const result = await executor(client, args);
+    return result;
+  } catch (error: unknown) {
+    const err = error as { message?: string; response?: { status?: number; data?: unknown } };
+
+    // Format error for MCP protocol
+    const errorMessage = {
+      error: true,
+      tool: name,
+      message: err.message || 'Unknown error',
+      status: err.response?.status,
+      data: err.response?.data,
+      timestamp: new Date().toISOString()
+    };
+
+    throw new Error(JSON.stringify(errorMessage, null, 2));
+  }
 }
 `;
 
@@ -142,23 +182,47 @@ export async function executeTool(name: string, args: Record<string, unknown>) {
     const clientFilePath = resolve(options.outputDir, 'src/http-client.ts');
     await writeFile(clientFilePath, httpClientCode);
 
+    // Step 6.5: Generate OAuth client if OAuth authentication is used (Epic 8)
+    const hasOAuth = Object.values(parseResult.security.schemes).some((s) => s.classification === 'oauth2');
+    if (hasOAuth) {
+      log('Step 6.5: Generating OAuth client...');
+      const oauthClientCode = generateOAuthClient(parseResult);
+      if (oauthClientCode) {
+        // Create auth directory
+        const { createDirectory } = await import('./fs-utils.js');
+        await createDirectory(resolve(options.outputDir, 'src/auth'));
+
+        // Write OAuth client file
+        const oauthClientPath = resolve(options.outputDir, 'src/auth/oauth-client.ts');
+        await writeFile(oauthClientPath, oauthClientCode);
+        log('OAuth client generated successfully');
+      }
+    }
+
     const duration = Date.now() - startTime;
     log(`✅ MCP server generation complete in ${duration}ms`);
+
+    const filesGenerated = [
+      'package.json',
+      'tsconfig.json',
+      'src/index.ts',
+      'src/types.ts',
+      'src/tools.ts',
+      'src/http-client.ts',
+      '.env.example',
+      '.gitignore',
+      'README.md',
+    ];
+
+    // Add OAuth client to file list if generated
+    if (hasOAuth) {
+      filesGenerated.push('src/auth/oauth-client.ts');
+    }
 
     return {
       success: true,
       outputDir: options.outputDir,
-      filesGenerated: [
-        'package.json',
-        'tsconfig.json',
-        'src/index.ts',
-        'src/types.ts',
-        'src/tools.ts',
-        'src/http-client.ts',
-        '.env.example',
-        '.gitignore',
-        'README.md',
-      ],
+      filesGenerated,
       metadata: {
         apiName: parseResult.metadata.apiName,
         apiVersion: parseResult.metadata.apiVersion,
@@ -215,33 +279,41 @@ const server = new Server(
 );
 
 // Handle list tools request
-server.setRequestHandler(ListToolsRequestSchema, async () => {
+server.setRequestHandler(ListToolsRequestSchema, async (): Promise<{ tools: typeof tools }> => {
   return {
     tools,
   };
 });
 
 // Handle call tool request
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  try {
-    const result = await executeTool(request.params.name, request.params.arguments || {});
-    return result;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return {
-      content: [
-        {
-          type: 'text',
-          text: \`Error executing tool: \${message}\`,
-        },
-      ],
-      isError: true,
-    };
+server.setRequestHandler(
+  CallToolRequestSchema,
+  async (
+    request: { params: { name: string; arguments?: Record<string, unknown> } }
+  ): Promise<{
+    content: Array<{ type: string; text: string }>;
+    isError?: boolean;
+  }> => {
+    try {
+      const result = await executeTool(request.params.name, request.params.arguments || {});
+      return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: \`Error executing tool: \${message}\`,
+          },
+        ],
+        isError: true,
+      };
+    }
   }
-});
+);
 
 // Start server
-async function main() {
+async function main(): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error('${document.info.title} MCP server running on stdio');
@@ -266,12 +338,58 @@ function generateHttpClient(parseResult: ParseResult): string {
   const hasApiKey = authSchemes.some((s) => s.type === 'apiKey' || s.classification.startsWith('api-key'));
   const hasBearer = authSchemes.some((s) => s.classification === 'http-bearer');
   const hasBasic = authSchemes.some((s) => s.classification === 'http-basic');
+  const hasOAuth = authSchemes.some((s) => s.classification === 'oauth2');
 
+  let authImports = '';
   let authInterceptor = '';
-  if (hasApiKey) {
+
+  if (hasOAuth) {
+    // OAuth2 authentication (Epic 8)
+    authImports = `import { getAccessToken } from './auth/oauth-client.js';`;
+    authInterceptor = `
+  // OAuth2 authentication
+  instance.interceptors.request.use(async (config: AxiosRequestConfig): Promise<AxiosRequestConfig> => {
+    try {
+      const token = await getAccessToken();
+      if (config.headers) {
+        config.headers.Authorization = \`Bearer \${token}\`;
+      }
+    } catch (error: any) {
+      console.error('[http-client] OAuth authentication error:', error.message);
+      throw error;
+    }
+    return config;
+  });
+
+  // OAuth2 token refresh on 401 errors
+  instance.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+      const originalRequest = error.config;
+
+      // If 401 and not already retried, try to refresh token
+      if (error.response?.status === 401 && !originalRequest._retry) {
+        originalRequest._retry = true;
+
+        try {
+          const token = await getAccessToken();
+          if (originalRequest.headers) {
+            originalRequest.headers.Authorization = \`Bearer \${token}\`;
+          }
+          return instance(originalRequest);
+        } catch (refreshError: any) {
+          console.error('[http-client] Token refresh failed:', refreshError.message);
+          throw error;
+        }
+      }
+
+      throw error;
+    }
+  );`;
+  } else if (hasApiKey) {
     authInterceptor = `
   // API Key authentication
-  instance.interceptors.request.use((config) => {
+  instance.interceptors.request.use((config: AxiosRequestConfig): AxiosRequestConfig => {
     const apiKey = process.env.API_KEY;
     if (apiKey && config.headers) {
       config.headers['X-API-Key'] = apiKey;
@@ -281,7 +399,7 @@ function generateHttpClient(parseResult: ParseResult): string {
   } else if (hasBearer) {
     authInterceptor = `
   // Bearer token authentication
-  instance.interceptors.request.use((config) => {
+  instance.interceptors.request.use((config: AxiosRequestConfig): AxiosRequestConfig => {
     const token = process.env.BEARER_TOKEN;
     if (token && config.headers) {
       config.headers.Authorization = \`Bearer \${token}\`;
@@ -291,7 +409,7 @@ function generateHttpClient(parseResult: ParseResult): string {
   } else if (hasBasic) {
     authInterceptor = `
   // Basic authentication
-  instance.interceptors.request.use((config) => {
+  instance.interceptors.request.use((config: AxiosRequestConfig): AxiosRequestConfig => {
     const username = process.env.BASIC_USERNAME;
     const password = process.env.BASIC_PASSWORD;
     if (username && password && config.headers) {
@@ -307,6 +425,7 @@ function generateHttpClient(parseResult: ParseResult): string {
  */
 
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+${authImports}
 
 /**
  * Base URL for API requests
@@ -339,6 +458,348 @@ export async function makeRequest<T = unknown>(
   config: AxiosRequestConfig
 ): Promise<AxiosResponse<T>> {
   return httpClient.request<T>(config);
+}
+`;
+}
+
+/**
+ * Generate OAuth2 client file (Epic 8)
+ * @public - Exported for use by CLI
+ */
+export function generateOAuthClient(parseResult: ParseResult): string {
+  const { security } = parseResult;
+
+  // Find OAuth scheme
+  const oauth2Scheme = Object.values(security.schemes).find((s) => s.classification === 'oauth2');
+  if (!oauth2Scheme) {
+    return '';
+  }
+
+  const metadata = oauth2Scheme.metadata as any;
+  const primaryFlow = metadata.primaryFlow || {};
+
+  // BUGFIX: Validate flow type exists instead of silent default
+  if (!primaryFlow.type) {
+    throw new Error(
+      `OAuth2 scheme missing flow type. ` +
+      `Scheme: ${oauth2Scheme.name}, ` +
+      `Flows available: ${Object.keys(metadata.flows || {}).join(', ')}`
+    );
+  }
+
+  const flowType = primaryFlow.type;
+  const tokenUrl = primaryFlow.tokenUrl || '';
+  const authorizationUrl = primaryFlow.authorizationUrl || '';
+  const isPKCE = primaryFlow.pkce || false;
+
+  // Generate Client Credentials flow code
+  if (flowType === 'clientCredentials') {
+    return `/**
+ * OAuth 2.0 Client - Client Credentials Flow
+ * Handles automatic token management with caching and refresh
+ */
+
+import axios from 'axios';
+
+/** Token cache */
+let cachedToken: string | null = null;
+let tokenExpiry: number = 0;
+
+/**
+ * Get OAuth2 access token using Client Credentials flow
+ * Automatically caches and refreshes tokens
+ */
+export async function getAccessToken(): Promise<string> {
+  const now = Date.now();
+
+  // Return cached token if still valid (with 5 min buffer)
+  if (cachedToken && tokenExpiry > now + 300000) {
+    if (process.env.DEBUG === 'true') {
+      console.error('[oauth-client] Using cached token');
+    }
+    return cachedToken;
+  }
+
+  const clientId = process.env.OAUTH_CLIENT_ID;
+  const clientSecret = process.env.OAUTH_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    throw new Error(
+      'OAuth2 credentials missing. ' +
+      'Please set OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET in your .env file'
+    );
+  }
+
+  try {
+    if (process.env.DEBUG === 'true') {
+      console.error('[oauth-client] Requesting new access token');
+    }
+
+    // Request access token from OAuth server
+    const response = await axios.post(
+      '${tokenUrl}',
+      {
+        grant_type: 'client_credentials',
+        client_id: clientId,
+        client_secret: clientSecret,
+      },
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        timeout: 30000,
+      }
+    );
+
+    const accessToken = response.data.access_token as string;
+    if (!accessToken) {
+      throw new Error('No access_token in OAuth2 response');
+    }
+
+    // Cache token with expiration
+    cachedToken = accessToken;
+    const expiresIn = response.data.expires_in || 3600; // Default 1 hour
+    tokenExpiry = now + (expiresIn * 1000);
+
+    if (process.env.DEBUG === 'true') {
+      console.error(\`[oauth-client] Token obtained, expires in \${expiresIn} seconds\`);
+    }
+
+    return accessToken;
+  } catch (error: any) {
+    const errorMessage = error.response?.data?.error_description || error.message;
+    console.error('[oauth-client] Failed to obtain access token:', errorMessage);
+    throw new Error(\`OAuth2 authentication failed: \${errorMessage}\`);
+  }
+}
+
+/**
+ * Clear cached token (useful for testing or forced refresh)
+ */
+export function clearTokenCache(): void {
+  cachedToken = null;
+  tokenExpiry = 0;
+  if (process.env.DEBUG === 'true') {
+    console.error('[oauth-client] Token cache cleared');
+  }
+}
+`;
+  }
+
+  // Generate Authorization Code flow code
+  if (flowType === 'authorizationCode') {
+    return `/**
+ * OAuth 2.0 Client - Authorization Code Flow${isPKCE ? ' with PKCE' : ''}
+ * Handles authorization flow and automatic token refresh
+ */
+
+import axios from 'axios';
+${isPKCE ? "import crypto from 'crypto';" : ''}
+
+/** Token cache */
+let cachedToken: string | null = null;
+let tokenExpiry: number = 0;
+let refreshToken: string | null = null;
+
+/**
+ * Get OAuth2 access token
+ * Automatically refreshes using refresh token if available
+ */
+export async function getAccessToken(): Promise<string> {
+  const now = Date.now();
+
+  // Return cached token if still valid (with 5 min buffer)
+  if (cachedToken && tokenExpiry > now + 300000) {
+    if (process.env.DEBUG === 'true') {
+      console.error('[oauth-client] Using cached token');
+    }
+    return cachedToken;
+  }
+
+  // Try refresh token first if available
+  if (refreshToken) {
+    try {
+      return await refreshAccessToken();
+    } catch (error) {
+      console.error('[oauth-client] Token refresh failed, need new authorization');
+      refreshToken = null;
+    }
+  }
+
+  // Need new authorization code
+  return await exchangeAuthorizationCode();
+}
+
+/**
+ * Exchange authorization code for access token
+ */
+async function exchangeAuthorizationCode(): Promise<string> {
+  const authCode = process.env.OAUTH_AUTHORIZATION_CODE;
+  const clientId = process.env.OAUTH_CLIENT_ID;
+  ${!isPKCE ? "const clientSecret = process.env.OAUTH_CLIENT_SECRET;" : ''}
+  const redirectUri = process.env.OAUTH_REDIRECT_URI || 'http://localhost:3000/callback';
+  ${isPKCE ? "const codeVerifier = process.env.OAUTH_CODE_VERIFIER || generateCodeVerifier();" : ''}
+
+  if (!authCode) {
+    throw new Error(
+      'Missing authorization code. Please authorize first by visiting:\\n' +
+      getAuthorizationUrl()
+    );
+  }
+
+  if (!clientId${!isPKCE ? ' || !clientSecret' : ''}) {
+    throw new Error('OAuth2 credentials missing in .env file');
+  }
+
+  try {
+    const response = await axios.post(
+      '${tokenUrl}',
+      {
+        grant_type: 'authorization_code',
+        code: authCode,
+        client_id: clientId,
+        ${!isPKCE ? 'client_secret: clientSecret,' : ''}
+        redirect_uri: redirectUri,
+        ${isPKCE ? 'code_verifier: codeVerifier,' : ''}
+      },
+      {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        timeout: 30000,
+      }
+    );
+
+    return cacheToken(response.data);
+  } catch (error: any) {
+    const errorMessage = error.response?.data?.error_description || error.message;
+    throw new Error(\`OAuth2 token exchange failed: \${errorMessage}\`);
+  }
+}
+
+/**
+ * Refresh access token using refresh token
+ */
+async function refreshAccessToken(): Promise<string> {
+  if (!refreshToken) {
+    throw new Error('No refresh token available');
+  }
+
+  const clientId = process.env.OAUTH_CLIENT_ID;
+  ${!isPKCE ? "const clientSecret = process.env.OAUTH_CLIENT_SECRET;" : ''}
+
+  try {
+    const response = await axios.post(
+      '${tokenUrl}',
+      {
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+        client_id: clientId,
+        ${!isPKCE ? 'client_secret: clientSecret,' : ''}
+      },
+      {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        timeout: 30000,
+      }
+    );
+
+    return cacheToken(response.data);
+  } catch (error: any) {
+    const errorMessage = error.response?.data?.error_description || error.message;
+    throw new Error(\`Token refresh failed: \${errorMessage}\`);
+  }
+}
+
+/**
+ * Cache token and update expiration
+ */
+function cacheToken(tokenResponse: any): string {
+  const accessToken = tokenResponse.access_token;
+  if (!accessToken) {
+    throw new Error('No access_token in response');
+  }
+
+  cachedToken = accessToken;
+  const expiresIn = tokenResponse.expires_in || 3600;
+  tokenExpiry = Date.now() + (expiresIn * 1000);
+
+  if (tokenResponse.refresh_token) {
+    refreshToken = tokenResponse.refresh_token;
+  }
+
+  if (process.env.DEBUG === 'true') {
+    console.error(\`[oauth-client] Token cached, expires in \${expiresIn}s\`);
+  }
+
+  return accessToken;
+}
+
+/**
+ * Get authorization URL for user consent
+ */
+export function getAuthorizationUrl(): string {
+  const clientId = process.env.OAUTH_CLIENT_ID;
+  const redirectUri = process.env.OAUTH_REDIRECT_URI || 'http://localhost:3000/callback';
+  const state = generateState();
+  ${isPKCE ? 'const codeVerifier = process.env.OAUTH_CODE_VERIFIER || generateCodeVerifier();' : ''}
+  ${isPKCE ? 'const codeChallenge = generateCodeChallenge(codeVerifier);' : ''}
+
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: clientId || '',
+    redirect_uri: redirectUri,
+    state,
+    ${isPKCE ? 'code_challenge: codeChallenge,' : ''}
+    ${isPKCE ? "code_challenge_method: 'S256'," : ''}
+  });
+
+  return \`${authorizationUrl}?\${params.toString()}\`;
+}
+
+${isPKCE ? `
+/**
+ * Generate PKCE code verifier
+ */
+function generateCodeVerifier(): string {
+  return crypto.randomBytes(32).toString('base64url');
+}
+
+/**
+ * Generate PKCE code challenge from verifier
+ */
+function generateCodeChallenge(verifier: string): string {
+  return crypto.createHash('sha256').update(verifier).digest('base64url');
+}
+` : ''}
+
+/**
+ * Generate random state for CSRF protection
+ */
+function generateState(): string {
+  return ${isPKCE ? "crypto.randomBytes(16).toString('hex')" : "Math.random().toString(36).substring(7)"};
+}
+
+/**
+ * Clear token cache
+ */
+export function clearTokenCache(): void {
+  cachedToken = null;
+  tokenExpiry = 0;
+  refreshToken = null;
+}
+`;
+  }
+
+  // Fallback for other flows (implicit, password)
+  return `/**
+ * OAuth 2.0 Client - ${flowType} Flow
+ * Note: This flow type requires manual implementation
+ */
+
+export async function getAccessToken(): Promise<string> {
+  throw new Error('${flowType} flow is not fully implemented. Please implement manually.');
+}
+
+export function clearTokenCache(): void {
+  // No-op for unsupported flows
 }
 `;
 }

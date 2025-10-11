@@ -466,4 +466,121 @@ describe('generateResponseProcessing', () => {
       expect(avgTime).toBeLessThan(1);
     });
   });
+
+  describe('CSV Response Handling (Story 9.3)', () => {
+    it('should preserve CSV formatting for text/csv responses', () => {
+      const operation: OperationMetadata = createMockOperation({
+        operationId: 'DownloadStatistics',
+        responses: [
+          {
+            statusCode: '200',
+            description: 'Statistics report',
+            mediaType: 'text/csv',
+          },
+        ],
+      });
+
+      const code = generateResponseProcessing(operation);
+
+      expect(code).toContain('isTextResponse');
+      expect(code).toContain('text/');
+      expect(code).toContain('String(response.data || response)');
+    });
+
+    it('should not affect JSON responses (backward compatible)', () => {
+      const operation: OperationMetadata = createMockOperation({
+        operationId: 'ListCampaigns',
+        responses: [
+          {
+            statusCode: '200',
+            description: 'Campaign list',
+            mediaType: 'application/json',
+            schemaName: 'CampaignList',
+          },
+        ],
+      });
+
+      const code = generateResponseProcessing(operation);
+
+      expect(code).toContain('JSON.stringify(truncatedData, null, 2)');
+      expect(code).not.toContain('isTextResponse');
+    });
+
+    it('should handle text/plain responses', () => {
+      const operation: OperationMetadata = createMockOperation({
+        operationId: 'GetLogs',
+        responses: [
+          {
+            statusCode: '200',
+            description: 'Log file',
+            mediaType: 'text/plain',
+          },
+        ],
+      });
+
+      const code = generateResponseProcessing(operation);
+
+      expect(code).toContain('isTextResponse');
+      expect(code).toContain('text/');
+    });
+
+    it('should handle text/html responses', () => {
+      const operation: OperationMetadata = createMockOperation({
+        operationId: 'GetReport',
+        responses: [
+          {
+            statusCode: '200',
+            description: 'HTML report',
+            mediaType: 'text/html',
+          },
+        ],
+      });
+
+      const code = generateResponseProcessing(operation);
+
+      expect(code).toContain('isTextResponse');
+      expect(code).toContain('text/');
+    });
+
+    it('should use JSON formatting when no text/* media type detected', () => {
+      const operation: OperationMetadata = createMockOperation({
+        operationId: 'GetData',
+        responses: [
+          {
+            statusCode: '200',
+            description: 'Data response',
+            mediaType: 'application/xml',
+          },
+        ],
+      });
+
+      const code = generateResponseProcessing(operation);
+
+      expect(code).not.toContain('isTextResponse');
+      expect(code).toContain('JSON.stringify(truncatedData, null, 2)');
+    });
+
+    it('should generate conditional formatting code for CSV responses', () => {
+      const operation: OperationMetadata = createMockOperation({
+        operationId: 'ExportData',
+        responses: [
+          {
+            statusCode: '200',
+            description: 'Export file',
+            mediaType: 'text/csv',
+          },
+        ],
+      });
+
+      const code = generateResponseProcessing(operation);
+
+      // Verify runtime detection
+      expect(code).toContain('typeof response === \'string\'');
+      expect(code).toContain('response?.headers?.[\'content-type\']?.includes(\'text/\')');
+
+      // Verify conditional formatting
+      expect(code).toContain('? String(response.data || response)');
+      expect(code).toContain(': JSON.stringify(truncatedData, null, 2)');
+    });
+  });
 });

@@ -1,0 +1,23 @@
+{
+  "schemes": {
+    "BearerAuth": {
+      "type": "http",
+      "scheme": "bearer",
+      "bearerFormat": "JWT",
+      "description": "Bearer token for user authentication"
+    },
+    "ApiKeyAuth": {
+      "type": "apiKey",
+      "in": "header",
+      "name": "X-API-Key",
+      "description": "API Key for application authentication"
+    }
+  },
+  "security": [
+    {
+      "BearerAuth": [],
+      "ApiKeyAuth": []
+    }
+  ],
+  "_comment": "This configuration requires BOTH Bearer token AND API Key (AND logic). The client must provide both authentication methods."
+}

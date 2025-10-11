@@ -143,7 +143,68 @@ openapi-to-mcp generate ./ozon.json -o ./mcp-admin
 
 ---
 
-### 3.2 Custom Package Name
+### 3.2 Authentication Override
+
+When OpenAPI specs are missing `securitySchemes` or have incorrect auth definitions, use auth override:
+
+```bash
+# Bearer token (when spec missing auth)
+openapi-to-mcp generate ./swagger.json \
+  --auth-override "bearer"
+
+# API Key in header
+openapi-to-mcp generate ./swagger.json \
+  --auth-override "apiKey:header:X-API-Key"
+
+# OAuth2 Client Credentials (common for missing auth specs)
+openapi-to-mcp generate ./swagger.json \
+  --auth-override "oauth2-client-credentials:https://auth.example.com/token"
+
+# Multi-scheme (both Bearer AND API Key required)
+openapi-to-mcp generate ./swagger.json \
+  --auth-override "bearer+apiKey:header:X-App-Key"
+```
+
+**Real-World Example**: Ozon Performance API
+```bash
+# Ozon API spec missing securitySchemes, but requires OAuth2
+openapi-to-mcp generate ./ozon-swagger.json \
+  --output ./ozon-mcp-server \
+  --auth-override "oauth2-client-credentials:https://api-seller.ozon.ru/oauth/token"
+```
+
+**Complex Auth with JSON Config**:
+```bash
+# Create auth-config.json
+cat > auth-config.json << 'EOF'
+{
+  "schemes": {
+    "OAuth2ClientCredentials": {
+      "type": "oauth2",
+      "flows": {
+        "clientCredentials": {
+          "tokenUrl": "https://api-seller.ozon.ru/oauth/token",
+          "scopes": {
+            "read": "Read access",
+            "write": "Write access"
+          }
+        }
+      }
+    }
+  },
+  "security": [{"OAuth2ClientCredentials": ["read", "write"]}]
+}
+EOF
+
+# Generate with config file
+openapi-to-mcp generate ./swagger.json --auth-config ./auth-config.json
+```
+
+**See Also**: [Auth Override Examples](../examples/auth-configs/README.md)
+
+---
+
+### 3.3 Custom Package Name
 
 ```bash
 # Override package name (default: from spec title)
@@ -155,7 +216,7 @@ openapi-to-mcp generate ./swagger.json -n my-custom-api
 
 ---
 
-### 3.3 Programmatic Usage
+### 3.4 Programmatic Usage
 
 ```typescript
 import { OpenAPIParser } from '@openapi-to-mcp/parser';
@@ -210,23 +271,32 @@ generateMCPServer();
 
 ### 4.1 Ozon Performance API (Real Example)
 
-**Spec**: 39 paths, 87 schemas, Bearer auth
+**Spec**: 39 paths, 87 schemas
+**Issue**: OpenAPI spec missing `securitySchemes` but API requires OAuth2 Client Credentials
+**Solution**: Use `--auth-override` flag
 
 ```bash
-# Generate full MCP server
+# Generate with auth override (spec missing securitySchemes)
 openapi-to-mcp generate ./swagger/swagger.json \
   -o ./ozon-performance-mcp \
-  -n ozon-performance-api
+  -n ozon-performance-api \
+  --auth-override "oauth2-client-credentials:https://api-seller.ozon.ru/oauth/token"
 
 cd ozon-performance-mcp
 npm install
 
-# Configure environment
-echo "OZON_API_TOKEN=your-token" > .env
+# Configure OAuth2 credentials
+cat > .env << EOF
+OZON_CLIENT_ID=your_client_id
+OZON_CLIENT_SECRET=your_client_secret
+EOF
 
 # Start server
 npm start
 ```
+
+**Generated Auth Code**:
+The generator automatically creates OAuth2 token acquisition and refresh logic in `src/http-client.ts` based on the override configuration.
 
 **Usage in AI**:
 ```typescript

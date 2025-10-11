@@ -46,7 +46,7 @@ export function extractOperations(
   const paths = document.paths as Record<string, unknown>;
 
   for (const [path, pathItem] of Object.entries(paths)) {
-    if (!pathItem || typeof pathItem !== 'object') continue;
+    if (!pathItem || typeof pathItem !== 'object') {continue;}
 
     const pathObj = pathItem as Record<string, unknown>;
     const pathLevelParams = extractParametersFromArray(
@@ -55,7 +55,7 @@ export function extractOperations(
 
     for (const method of HTTP_METHODS) {
       const operation = pathObj[method];
-      if (!operation || typeof operation !== 'object') continue;
+      if (!operation || typeof operation !== 'object') {continue;}
 
       const op = operation as Record<string, unknown>;
 
@@ -172,7 +172,7 @@ function extractParametersFromArray(params: Record<string, unknown>[]): Paramete
   const result: ParameterMetadata[] = [];
 
   for (const param of params) {
-    if (!param || typeof param !== 'object') continue;
+    if (!param || typeof param !== 'object') {continue;}
 
     const p = param as Record<string, unknown>;
 
@@ -271,11 +271,24 @@ function extractRequestBody(
     }
   }
 
-  // Extract schema name (schema should be a reference to extracted schema)
+  // Extract schema name
+  // After ref resolution, the schema is expanded inline and loses its name
+  // Try multiple approaches to get the schema name:
   let schemaName: string | undefined;
   if (schema && typeof schema === 'object') {
-    // Schema might have a title or we generated a name in extractSchemas
-    schemaName = (schema.title as string) || undefined;
+    // 1. Check for 'x-schema-name' property (custom extension that we could add)
+    // 2. Check for 'title' property (from original schema)
+    // 3. Check for 'name' property (added by schema extractor)
+    // 4. Try to infer from the schema properties if it matches a known pattern
+    schemaName = (schema['x-schema-name'] as string) || (schema.title as string) || (schema.name as string) || undefined;
+
+    // If still no schema name, try to infer from properties
+    // This is a workaround for resolved schemas that lost their names
+    if (!schemaName && schema.properties && typeof schema.properties === 'object') {
+      // For now, we'll leave schemaName as undefined
+      // The tool-generator will fallback to generic object schema
+      // TODO: Future improvement - match resolved schema against SchemaMap by structure
+    }
   }
 
   return {
@@ -283,6 +296,7 @@ function extractRequestBody(
     description: rb.description as string | undefined,
     mediaType: selectedMediaType,
     schemaName,
+    schema, // Include the inline expanded schema
   };
 }
 
@@ -301,7 +315,7 @@ function extractResponses(
   const responses = operation.responses as Record<string, unknown>;
 
   for (const [statusCode, response] of Object.entries(responses)) {
-    if (!response || typeof response !== 'object') continue;
+    if (!response || typeof response !== 'object') {continue;}
 
     const resp = response as Record<string, unknown>;
 

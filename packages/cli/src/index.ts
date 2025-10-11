@@ -27,7 +27,7 @@ async function main(): Promise<void> {
   try {
     // Read package.json for version
     const packageJsonPath = join(__dirname, '../package.json');
-    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as { version: string };
 
     // Create program instance
     const program = new Command();
@@ -48,7 +48,7 @@ async function main(): Promise<void> {
   } catch (error) {
     // Format and display error
     const verbose = process.argv.includes('--verbose');
-    // eslint-disable-next-line no-console
+     
     console.error(formatError(error, { verbose }));
 
     // Log error for debugging
@@ -65,7 +65,7 @@ async function main(): Promise<void> {
  */
 process.on('unhandledRejection', (reason) => {
   logger.error('Unhandled promise rejection', reason);
-  /* eslint-disable-next-line no-console */
+   
   console.error(formatError(reason, { verbose: false }));
   process.exitCode = 2; // Internal error
 });
@@ -75,11 +75,11 @@ process.on('unhandledRejection', (reason) => {
  */
 process.on('uncaughtException', (error) => {
   logger.error('Uncaught exception', error);
-  /* eslint-disable-next-line no-console */
+   
   console.error(formatError(error, { verbose: false }));
   process.exitCode = 2; // Internal error
   process.exit(2); // Exit immediately for uncaught exceptions
 });
 
 // Run main function
-main();
+void main();

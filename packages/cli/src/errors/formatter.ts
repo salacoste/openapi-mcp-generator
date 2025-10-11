@@ -39,7 +39,8 @@ export function formatError(error: unknown, options: FormatOptions = {}): string
   // Error type (red)
   const errorType = error.name || 'Error';
   const typeLineContent = `│ ❌ ${errorType}`;
-  const padding = ' '.repeat(50 - typeLineContent.length);
+  const paddingLength = Math.max(0, 50 - typeLineContent.length);
+  const padding = ' '.repeat(paddingLength);
   lines.push(colors ? chalk.red(typeLineContent + padding + '│') : typeLineContent + padding + '│');
 
   // Separator
@@ -49,7 +50,7 @@ export function formatError(error: unknown, options: FormatOptions = {}): string
   const message = error.message;
   const messageLines = wrapText(message, 47);
   for (const line of messageLines) {
-    const linePadding = ' '.repeat(47 - line.length);
+    const linePadding = ' '.repeat(Math.max(0, 47 - line.length));
     lines.push(`│ ${line}${linePadding} │`);
   }
 
@@ -63,7 +64,7 @@ export function formatError(error: unknown, options: FormatOptions = {}): string
       const contextLine = `  ${key}: ${String(value)}`;
       const contextLines = wrapText(contextLine, 47);
       for (const line of contextLines) {
-        const linePadding = ' '.repeat(47 - line.length);
+        const linePadding = ' '.repeat(Math.max(0, 47 - line.length));
         lines.push(`│ ${line}${linePadding} │`);
       }
     }
@@ -76,7 +77,7 @@ export function formatError(error: unknown, options: FormatOptions = {}): string
 
     const fixLines = wrapText(baseError.suggestedFix, 47);
     for (const line of fixLines) {
-      const linePadding = ' '.repeat(47 - line.length);
+      const linePadding = ' '.repeat(Math.max(0, 47 - line.length));
       lines.push(`│ ${line}${linePadding} │`);
     }
   }

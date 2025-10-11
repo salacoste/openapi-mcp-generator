@@ -209,7 +209,7 @@ export class ValidationReporter {
 
     for (const category of categories) {
       const categoryChecks = report.checks.filter((c) => c.category === category);
-      if (categoryChecks.length === 0) continue;
+      if (categoryChecks.length === 0) {continue;}
 
       lines.push('');
       lines.push(`${category.toUpperCase()}:`);

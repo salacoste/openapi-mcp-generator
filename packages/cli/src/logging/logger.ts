@@ -137,7 +137,7 @@ export class Logger {
    * Log a warning message
    */
   warn(message: string, ...args: unknown[]): void {
-    if (this.quiet) return;
+    if (this.quiet) {return;}
     const redactedArgs = args.map((arg) => redactSensitiveData(arg));
     this.warnLogger(`[${this.correlationId}] ${message}`, ...redactedArgs);
   }
@@ -146,7 +146,7 @@ export class Logger {
    * Log an info message
    */
   info(message: string, ...args: unknown[]): void {
-    if (this.quiet) return;
+    if (this.quiet) {return;}
     const redactedArgs = args.map((arg) => redactSensitiveData(arg));
     this.infoLogger(`[${this.correlationId}] ${message}`, ...redactedArgs);
   }
@@ -155,7 +155,7 @@ export class Logger {
    * Log a debug message (only shown in verbose mode)
    */
   debug(message: string, ...args: unknown[]): void {
-    if (this.quiet) return;
+    if (this.quiet) {return;}
     const redactedArgs = args.map((arg) => redactSensitiveData(arg));
     this.debugLogger(`[${this.correlationId}] ${message}`, ...redactedArgs);
   }

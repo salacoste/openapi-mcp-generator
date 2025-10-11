@@ -4,7 +4,7 @@
  */
 
 import Handlebars from 'handlebars';
-import { readFile, pathExists } from 'fs-extra';
+import fs from 'fs-extra';
 import { format as prettierFormat } from 'prettier';
 import { registerHelpers } from './helpers.js';
 import {
@@ -122,7 +122,7 @@ export class CodeGenerator {
    * Validate that template file exists
    */
   private async validateTemplateExists(templatePath: string): Promise<void> {
-    const exists = await pathExists(templatePath);
+    const exists = await fs.pathExists(templatePath);
     if (!exists) {
       throw new TemplateNotFoundError(templatePath);
     }
@@ -143,7 +143,7 @@ export class CodeGenerator {
 
     try {
       // Read template file
-      const templateContent = await readFile(templatePath, 'utf-8');
+      const templateContent = await fs.readFile(templatePath, 'utf-8');
 
       // Compile template
       const compiled = this.templateEngine.compile(templateContent, {
@@ -245,7 +245,7 @@ export class CodeGenerator {
    */
   private log(message: string): void {
     if (this.verbose) {
-      // eslint-disable-next-line no-console
+       
       console.log(`[CodeGenerator] ${message}`);
     }
   }

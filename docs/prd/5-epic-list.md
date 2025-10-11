@@ -129,7 +129,7 @@ This document provides a high-level overview of all epics and user stories.
 
 ## Key Milestones
 
-**Milestone 1 (Week 4):** Foundation complete - working CLI with hello-world generation
+**Milestone 1 (Week 4):** Foundation complete - working CLI with hello-world (removed Story 6.3) generation
 **Milestone 2 (Week 8):** Parser complete - can parse and normalize any OpenAPI 3.0 document
 **Milestone 3 (Week 12):** Generator complete - produces compilable MCP servers
 **Milestone 4 (Week 16):** Auth + AI features - production-ready for authenticated APIs

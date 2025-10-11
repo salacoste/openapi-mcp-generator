@@ -156,7 +156,7 @@ describe('analyzeSecurityRequirements', () => {
   });
 
   describe('Unsupported Authentication Schemes', () => {
-    it('should flag OAuth2 as unsupported', () => {
+    it('should throw error for malformed OAuth2 scheme missing metadata', () => {
       const schemes: SecuritySchemeTemplateData[] = [
         {
           name: 'oauth2',
@@ -173,22 +173,8 @@ describe('analyzeSecurityRequirements', () => {
         },
       ];
 
-      const guidance = analyzeSecurityRequirements(schemes);
-
-      expect(guidance.optional).toContain('oauth2');
-      expect(guidance.unsupported).toHaveLength(1);
-      expect(guidance.unsupported[0]).toMatchObject({
-        name: 'oauth2',
-        type: 'oauth2',
-      });
-      expect(guidance.unsupported[0].reason).toContain('manual implementation');
-      expect(guidance.unsupported[0].workaround).toContain('authorizationCode');
-      expect(guidance.unsupported[0].workaround).toContain('BEARER_TOKEN');
-
-      // Should suggest using bearer token after OAuth2 flow
-      const bearerTokenVar = guidance.envVars.find(v => v.name === 'BEARER_TOKEN');
-      expect(bearerTokenVar).toBeDefined();
-      expect(bearerTokenVar?.required).toBe(false);
+      // Malformed OAuth2 scheme (missing metadata.primaryFlow) should throw validation error
+      expect(() => analyzeSecurityRequirements(schemes)).toThrow('OAuth2 scheme missing flow type');
     });
 
     it('should flag OpenID Connect as unsupported', () => {

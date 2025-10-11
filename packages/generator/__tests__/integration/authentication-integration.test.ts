@@ -210,7 +210,7 @@ describe('Story 4.9: Authentication Integration Testing', () => {
       for (const endpoint of endpoints) {
         try {
           await client.get(endpoint);
-        } catch (error) {
+        } catch {
           // Expected mock error
         }
       }
@@ -549,7 +549,7 @@ describe('Story 4.9: Authentication Integration Testing', () => {
 
       try {
         await client.get('/test-endpoint');
-      } catch (error) {
+      } catch {
         // Expected mock error
       }
 

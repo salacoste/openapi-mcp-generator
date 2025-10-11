@@ -96,6 +96,10 @@ export interface HttpBasicMetadata {
 export interface OAuth2Metadata {
   /** OAuth2 flows configuration */
   flows: OAuth2Flows;
+  /** Primary OAuth flow for code generation */
+  primaryFlow?: OAuth2FlowConfig;
+  /** Additional OAuth flows (if multiple defined) */
+  additionalFlows?: OAuth2FlowConfig[];
 }
 
 /**
@@ -124,6 +128,24 @@ export interface OAuth2Flow {
   refreshUrl?: string;
   /** Available scopes and their descriptions */
   scopes: Record<string, string>;
+}
+
+/**
+ * OAuth2 flow configuration for code generation
+ */
+export interface OAuth2FlowConfig {
+  /** OAuth 2.0 flow type */
+  type: 'clientCredentials' | 'authorizationCode' | 'implicit' | 'password';
+  /** Token endpoint URL (required for all flows except implicit) */
+  tokenUrl: string;
+  /** Authorization endpoint URL (required for authorizationCode, implicit) */
+  authorizationUrl?: string;
+  /** Refresh endpoint URL (optional) */
+  refreshUrl?: string;
+  /** Available scopes with descriptions */
+  scopes: Record<string, string>;
+  /** PKCE required (for authorizationCode flow) */
+  pkce?: boolean;
 }
 
 /**
@@ -274,12 +296,8 @@ export function classifySecurityScheme(
 
     case 'oauth2':
       classification = 'oauth2';
-      metadata = extractOAuth2Metadata(scheme);
-      supported = false;
-      warnings.push(
-        `OAuth2 scheme '${name}' requires manual implementation. ` +
-        `Generated code provides placeholder. See Epic 4 authentication documentation.`
-      );
+      metadata = extractOAuth2Metadata(scheme, name, warnings);
+      supported = true; // Epic 8: OAuth2 now fully supported
       break;
 
     case 'openIdConnect':
@@ -339,12 +357,152 @@ function extractHttpBasicMetadata(): HttpBasicMetadata {
 }
 
 /**
- * Extract OAuth2 metadata
+ * Extract OAuth2 metadata with flow classification
  */
-function extractOAuth2Metadata(scheme: RawSecurityScheme): OAuth2Metadata {
+function extractOAuth2Metadata(
+  scheme: RawSecurityScheme,
+  schemeName: string,
+  warnings: string[]
+): OAuth2Metadata {
+  const flows = scheme.flows as OAuth2Flows;
+
+  if (!flows) {
+    throw new Error(`OAuth2 scheme '${schemeName}' has no flows defined`);
+  }
+
+  const flowConfigs: OAuth2FlowConfig[] = [];
+
+  // Client Credentials Flow (highest priority for automatic code generation)
+  if (flows.clientCredentials) {
+    const flow = flows.clientCredentials;
+    if (!flow.tokenUrl) {
+      warnings.push(`OAuth2 scheme '${schemeName}': Client Credentials flow missing tokenUrl`);
+    }
+    flowConfigs.push({
+      type: 'clientCredentials',
+      tokenUrl: flow.tokenUrl || '',
+      refreshUrl: flow.refreshUrl,
+      scopes: flow.scopes || {},
+    });
+  }
+
+  // Authorization Code Flow (second priority)
+  if (flows.authorizationCode) {
+    const flow = flows.authorizationCode;
+    if (!flow.tokenUrl) {
+      warnings.push(`OAuth2 scheme '${schemeName}': Authorization Code flow missing tokenUrl`);
+    }
+    if (!flow.authorizationUrl) {
+      warnings.push(`OAuth2 scheme '${schemeName}': Authorization Code flow missing authorizationUrl`);
+    }
+
+    // Detect PKCE requirement
+    const pkce = detectPKCERequirement(scheme, flow, schemeName, warnings);
+
+    flowConfigs.push({
+      type: 'authorizationCode',
+      tokenUrl: flow.tokenUrl || '',
+      authorizationUrl: flow.authorizationUrl,
+      refreshUrl: flow.refreshUrl,
+      scopes: flow.scopes || {},
+      pkce,
+    });
+  }
+
+  // Implicit Flow (discouraged but still supported)
+  if (flows.implicit) {
+    const flow = flows.implicit;
+    if (!flow.authorizationUrl) {
+      warnings.push(`OAuth2 scheme '${schemeName}': Implicit flow missing authorizationUrl`);
+    }
+    warnings.push(
+      `OAuth2 scheme '${schemeName}': Implicit flow is deprecated. ` +
+      `Consider using Authorization Code flow with PKCE instead.`
+    );
+
+    flowConfigs.push({
+      type: 'implicit',
+      tokenUrl: '', // Implicit doesn't use token endpoint
+      authorizationUrl: flow.authorizationUrl,
+      scopes: flow.scopes || {},
+    });
+  }
+
+  // Password Flow (discouraged but still supported)
+  if (flows.password) {
+    const flow = flows.password;
+    if (!flow.tokenUrl) {
+      warnings.push(`OAuth2 scheme '${schemeName}': Password flow missing tokenUrl`);
+    }
+    warnings.push(
+      `OAuth2 scheme '${schemeName}': Password flow is discouraged. ` +
+      `Consider using Client Credentials or Authorization Code flow instead.`
+    );
+
+    flowConfigs.push({
+      type: 'password',
+      tokenUrl: flow.tokenUrl || '',
+      refreshUrl: flow.refreshUrl,
+      scopes: flow.scopes || {},
+    });
+  }
+
+  // Validate at least one flow exists
+  if (flowConfigs.length === 0) {
+    throw new Error(`OAuth2 scheme '${schemeName}' has no valid flows defined`);
+  }
+
+  // Primary flow is the first one (preference order: clientCredentials > authorizationCode > others)
+  const [primaryFlow, ...additionalFlows] = flowConfigs;
+
   return {
-    flows: scheme.flows as OAuth2Flows
+    flows,
+    primaryFlow,
+    additionalFlows: additionalFlows.length > 0 ? additionalFlows : undefined,
   };
+}
+
+/**
+ * Detect if PKCE is required for Authorization Code flow
+ */
+function detectPKCERequirement(
+  scheme: RawSecurityScheme,
+  flow: OAuth2Flow,
+  schemeName: string,
+  warnings: string[]
+): boolean {
+  // Check for PKCE extension at scheme level (e.g., x-pkce: true)
+  const schemeWithExtensions = scheme as RawSecurityScheme & { 'x-pkce'?: boolean; 'x-pkce-required'?: boolean };
+  if (schemeWithExtensions['x-pkce'] !== undefined) {
+    return schemeWithExtensions['x-pkce'];
+  }
+  if (schemeWithExtensions['x-pkce-required'] !== undefined) {
+    return schemeWithExtensions['x-pkce-required'];
+  }
+
+  // Check for explicit PKCE extension at flow level (vendor-specific)
+  const flowWithExtensions = flow as OAuth2Flow & { 'x-pkce-required'?: boolean; 'x-pkce'?: boolean };
+  if (flowWithExtensions['x-pkce-required'] !== undefined) {
+    return flowWithExtensions['x-pkce-required'];
+  }
+  if (flowWithExtensions['x-pkce'] !== undefined) {
+    return flowWithExtensions['x-pkce'];
+  }
+
+  // Check description for PKCE mentions
+  const flowWithDescription = flow as OAuth2Flow & { description?: string };
+  const description = flowWithDescription.description || '';
+  if (description.toLowerCase().includes('pkce')) {
+    return true;
+  }
+
+  // Recommend PKCE as best practice
+  warnings.push(
+    `OAuth2 scheme '${schemeName}': Consider enabling PKCE for Authorization Code flow. ` +
+    `Add 'x-pkce: true' to the security scheme definition for enhanced security.`
+  );
+
+  return false; // Default to false, but recommend enabling
 }
 
 /**

@@ -7,7 +7,7 @@
 export { CodeGenerator } from './generator.js';
 
 // MCP Server generator (main entry point)
-export { generateMCPServer } from './mcp-generator.js';
+export { generateMCPServer, generateOAuthClient } from './mcp-generator.js';
 
 // Interface generator
 export * from './interface-generator.js';

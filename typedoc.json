@@ -1,0 +1,35 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": [
+    "packages/parser/src/index.ts",
+    "packages/generator/src/index.ts",
+    "packages/cli/src/index.ts"
+  ],
+  "entryPointStrategy": "expand",
+  "out": "docs/api",
+  "name": "OpenAPI-to-MCP Generator API",
+  "exclude": [
+    "**/*.test.ts",
+    "**/__tests__/**",
+    "**/tests/**",
+    "**/node_modules/**",
+    "**/*.spec.ts"
+  ],
+  "excludePrivate": true,
+  "excludeProtected": false,
+  "excludeExternals": true,
+  "includeVersion": true,
+  "readme": "docs/api-readme.md",
+  "theme": "default",
+  "plugin": ["typedoc-plugin-markdown"],
+  "categorizeByGroup": true,
+  "categoryOrder": ["Parser", "Generator", "CLI", "*"],
+  "sort": ["source-order"],
+  "validation": {
+    "notExported": false,
+    "invalidLink": false,
+    "notDocumented": false
+  },
+  "skipErrorChecking": true,
+  "cleanOutputDir": true
+}

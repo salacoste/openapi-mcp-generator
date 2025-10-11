@@ -139,6 +139,9 @@ export interface SecuritySchemeTemplateData {
   in?: 'header' | 'query' | 'cookie';
   paramName?: string;
   flows?: Record<string, unknown>;
+  classification?: string;
+  supported?: boolean;
+  metadata?: any;  // Full metadata from parser (includes primaryFlow for OAuth)
 }
 
 /**
@@ -237,6 +240,8 @@ export interface GenerationOptions {
   author?: string;
   /** Repository URL for package.json */
   repository?: string;
+  /** Skip OpenAPI validation (use with caution) */
+  skipValidation?: boolean;
 }
 
 /**

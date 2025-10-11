@@ -3,7 +3,7 @@
  * Converts OpenAPI schemas to type-safe TypeScript interfaces
  */
 
-import { pascalCase } from './helpers.js';
+import type { NormalizedSchema, PropertySchema } from '@openapi-to-mcp/parser';
 
 /**
  * Interface generation options
@@ -50,33 +50,8 @@ export interface InterfaceGenerationResult {
 }
 
 /**
- * Normalized schema from parser
- */
-export interface NormalizedSchema {
-  name: string;
-  type: string;
-  description?: string;
-  properties?: Record<string, NormalizedSchema>;
-  required?: string[];
-  nullable?: boolean;
-  enum?: (string | number)[];
-  items?: NormalizedSchema;
-  format?: string;
-  example?: unknown;
-  allOf?: NormalizedSchema[];
-  oneOf?: NormalizedSchema[];
-  anyOf?: NormalizedSchema[];
-  discriminator?: {
-    propertyName: string;
-    mapping?: Record<string, string>;
-  };
-  minItems?: number;
-  maxItems?: number;
-  $ref?: string;
-}
-
-/**
- * Schema map from parser
+ * Schema map for interface generation
+ * Uses parser's NormalizedSchema type
  */
 export type SchemaMap = Record<string, NormalizedSchema>;
 
@@ -132,13 +107,9 @@ function generateInterface(
   const interfaces: GeneratedInterface[] = [];
 
   // Handle composition (allOf, oneOf, anyOf)
-  if (schema.allOf || schema.oneOf || schema.anyOf) {
-    const compositionInterface = generateCompositionInterface(
-      name,
-      schema,
-      allSchemas,
-      options
-    );
+  // Support both normalized format (schema.composition) and raw OpenAPI format (schema.allOf/oneOf/anyOf)
+  if (schema.composition || (schema as any).allOf || (schema as any).oneOf || (schema as any).anyOf) {
+    const compositionInterface = generateCompositionInterface(name, schema, options);
     interfaces.push(compositionInterface);
     return interfaces;
   }
@@ -147,13 +118,21 @@ function generateInterface(
   const mainInterface = generateObjectInterface(name, schema, allSchemas, options);
   interfaces.push(mainInterface);
 
-  // Generate nested interfaces
+  // Generate nested interfaces for object properties
+  // Note: PropertySchema doesn't have 'properties', but test schemas might
   if (schema.properties) {
     for (const [propName, propSchema] of Object.entries(schema.properties)) {
-      if (propSchema.type === 'object' && propSchema.properties) {
-        const nestedName = `${name}${pascalCase(propName)}`;
-        const nested = generateInterface(nestedName, propSchema, allSchemas, options);
-        interfaces.push(...nested);
+      if (propSchema.type === 'object' && 'properties' in propSchema && propSchema.properties) {
+        // This is a nested object that needs its own interface
+        const nestedSchema: NormalizedSchema = {
+          name: `${name}${capitalize(propName)}`,
+          type: 'object',
+          properties: propSchema.properties as Record<string, PropertySchema>,
+          required: (propSchema as any).required,
+          description: propSchema.description,
+        };
+        const nestedInterfaces = generateInterface(nestedSchema.name, nestedSchema, allSchemas, options);
+        interfaces.push(...nestedInterfaces);
       }
     }
   }
@@ -178,12 +157,20 @@ function generateObjectInterface(
     lines.push(formatJSDocComment(schema.description, schema.example, options));
   }
 
-  // Interface declaration
-  lines.push(`export interface ${name} {`);
+  // Check if schema has properties
+  const hasProperties = schema.properties && Object.keys(schema.properties).length > 0;
 
-  // Add properties
-  if (schema.properties) {
-    for (const [propName, propSchema] of Object.entries(schema.properties)) {
+  if (!hasProperties) {
+    // For empty schemas, use type alias instead of interface to avoid ESLint errors
+    lines.push(`export type ${name} = Record<string, unknown>;`);
+  } else {
+    // Interface declaration
+    lines.push(`export interface ${name} {`);
+
+    // Add properties
+    // TypeScript knows schema.properties is defined here because of hasProperties check
+    const properties = schema.properties!;
+    for (const [propName, propSchema] of Object.entries(properties)) {
       const isRequired = schema.required?.includes(propName) ?? false;
       const optional = isRequired ? '' : '?';
 
@@ -193,13 +180,13 @@ function generateObjectInterface(
       }
 
       // Property type
-      const tsType = mapSchemaToTypeScript(propSchema, allSchemas, options, dependencies);
+      const tsType = mapSchemaToTypeScript(propSchema, allSchemas, options, dependencies, name, propName);
 
       lines.push(`  ${propName}${optional}: ${tsType};`);
     }
-  }
 
-  lines.push('}');
+    lines.push('}');
+  }
 
   return {
     name,
@@ -212,11 +199,11 @@ function generateObjectInterface(
 
 /**
  * Generate composition interface (allOf, oneOf, anyOf)
+ * Supports both normalized format (schema.composition) and raw OpenAPI format
  */
 function generateCompositionInterface(
   name: string,
   schema: NormalizedSchema,
-  allSchemas: SchemaMap,
   options: Required<InterfaceGenerationOptions>
 ): GeneratedInterface {
   const lines: string[] = [];
@@ -227,40 +214,52 @@ function generateCompositionInterface(
     lines.push(formatJSDocComment(schema.description, schema.example, options));
   }
 
+  // Detect composition type and schema references
+  let compositionType: 'allOf' | 'oneOf' | 'anyOf' | undefined;
+  let schemaNames: string[] = [];
+
+  // Check for normalized format
+  if (schema.composition) {
+    compositionType = schema.composition.type;
+    schemaNames = schema.composition.schemas;
+  }
+  // Check for raw OpenAPI format
+  else {
+    const rawSchema = schema as any;
+    if (rawSchema.allOf) {
+      compositionType = 'allOf';
+      schemaNames = extractSchemaNames(rawSchema.allOf);
+    } else if (rawSchema.oneOf) {
+      compositionType = 'oneOf';
+      schemaNames = extractSchemaNames(rawSchema.oneOf);
+    } else if (rawSchema.anyOf) {
+      compositionType = 'anyOf';
+      schemaNames = extractSchemaNames(rawSchema.anyOf);
+    }
+  }
+
+  if (!compositionType || schemaNames.length === 0) {
+    // Fallback - should not happen
+    lines.push(`export interface ${name} {}`);
+    return {
+      name,
+      code: lines.join('\n'),
+      dependencies,
+      sourceSchema: name,
+      comment: schema.description,
+    };
+  }
+
+  // Add schema names to dependencies
+  dependencies.push(...schemaNames);
+
   // Handle allOf (intersection)
-  if (schema.allOf) {
-    const types = schema.allOf.map((s) =>
-      mapSchemaToTypeScript(s, allSchemas, options, dependencies)
-    );
-    lines.push(`export type ${name} = ${types.join(' & ')};`);
+  if (compositionType === 'allOf') {
+    lines.push(`export type ${name} = ${schemaNames.join(' & ')};`);
   }
   // Handle oneOf/anyOf (union)
-  else if (schema.oneOf || schema.anyOf) {
-    const schemas = schema.oneOf || schema.anyOf || [];
-
-    // Check for discriminated union
-    if (schema.discriminator) {
-      // Generate separate interfaces for each variant
-      const variantInterfaces: string[] = [];
-
-      schemas.forEach((variantSchema) => {
-        const variantType = mapSchemaToTypeScript(
-          variantSchema,
-          allSchemas,
-          options,
-          dependencies
-        );
-        variantInterfaces.push(variantType);
-      });
-
-      lines.push(`export type ${name} = ${variantInterfaces.join(' | ')};`);
-    } else {
-      // Simple union
-      const types = schemas.map((s) =>
-        mapSchemaToTypeScript(s, allSchemas, options, dependencies)
-      );
-      lines.push(`export type ${name} = ${types.join(' | ')};`);
-    }
+  else if (compositionType === 'oneOf' || compositionType === 'anyOf') {
+    lines.push(`export type ${name} = ${schemaNames.join(' | ')};`);
   }
 
   return {
@@ -274,23 +273,20 @@ function generateCompositionInterface(
 
 /**
  * Map OpenAPI schema to TypeScript type
+ * Handles both NormalizedSchema and PropertySchema from parser
  */
 function mapSchemaToTypeScript(
-  schema: NormalizedSchema,
+  schema: NormalizedSchema | PropertySchema,
   allSchemas: SchemaMap,
   options: Required<InterfaceGenerationOptions>,
-  dependencies: string[]
+  dependencies: string[],
+  parentName?: string,
+  propertyName?: string
 ): string {
   let tsType: string;
 
-  // Handle $ref
-  if (schema.$ref) {
-    const refName = schema.$ref.split('/').pop() || 'unknown';
-    dependencies.push(refName);
-    tsType = refName;
-  }
   // Handle enum
-  else if (schema.enum) {
+  if (schema.enum) {
     if (typeof schema.enum[0] === 'string') {
       tsType = schema.enum.map((v) => `'${v}'`).join(' | ');
     } else {
@@ -299,23 +295,48 @@ function mapSchemaToTypeScript(
   }
   // Handle array
   else if (schema.type === 'array' && schema.items) {
-    const itemType = mapSchemaToTypeScript(schema.items, allSchemas, options, dependencies);
+    // Check for tuple type (fixed-length array with minItems === maxItems)
+    // Check both raw schema properties and constraints object
+    let minItems: number | undefined;
+    let maxItems: number | undefined;
 
-    // Check for tuple (fixed length array)
-    if (
-      schema.minItems !== undefined &&
-      schema.maxItems !== undefined &&
-      schema.minItems === schema.maxItems
-    ) {
-      const tupleTypes = Array(schema.minItems).fill(itemType);
+    // PropertySchema has PropertyConstraints (no minItems/maxItems)
+    // NormalizedSchema has SchemaConstraints (has minItems/maxItems)
+    // Raw test schemas may have minItems/maxItems directly
+    if ('minItems' in schema) {
+      minItems = (schema as any).minItems;
+    } else if ('constraints' in schema && schema.constraints && 'minItems' in schema.constraints) {
+      minItems = (schema.constraints as any).minItems;
+    }
+
+    if ('maxItems' in schema) {
+      maxItems = (schema as any).maxItems;
+    } else if ('constraints' in schema && schema.constraints && 'maxItems' in schema.constraints) {
+      maxItems = (schema.constraints as any).maxItems;
+    }
+
+    if (minItems !== undefined && maxItems !== undefined && minItems === maxItems && minItems > 0) {
+      // Generate tuple type [T, T, ...]
+      const itemType = mapSchemaToTypeScript(schema.items, allSchemas, options, dependencies);
+      const tupleTypes = Array(minItems).fill(itemType);
       tsType = `[${tupleTypes.join(', ')}]`;
     } else {
+      // Regular array
+      const itemType = mapSchemaToTypeScript(schema.items, allSchemas, options, dependencies);
       tsType = options.arrayStyle === 'bracket' ? `${itemType}[]` : `Array<${itemType}>`;
     }
   }
   // Handle object
   else if (schema.type === 'object') {
-    if (schema.name) {
+    // Check if this is a nested object with properties
+    // Use 'properties' check to identify nested objects (test schemas may have this)
+    if ('properties' in schema && schema.properties && parentName && propertyName) {
+      // Reference the nested interface that will be generated
+      tsType = `${parentName}${capitalize(propertyName)}`;
+      dependencies.push(tsType);
+    }
+    // NormalizedSchema has name property
+    else if ('name' in schema && schema.name) {
       tsType = schema.name;
       dependencies.push(schema.name);
     } else {
@@ -335,8 +356,8 @@ function mapSchemaToTypeScript(
     tsType = typeMap[schema.type] || 'unknown';
   }
 
-  // Add nullable
-  if (schema.nullable) {
+  // Add nullable (only PropertySchema has this property)
+  if ('nullable' in schema && schema.nullable) {
     tsType = `${tsType} | null`;
   }
 
@@ -388,4 +409,30 @@ function generateCombinedCode(interfaces: GeneratedInterface[]): string {
   });
 
   return lines.join('\n');
+}
+
+/**
+ * Extract schema names from OpenAPI $ref objects
+ * Supports both { $ref: '#/components/schemas/Name' } and plain schema names
+ */
+function extractSchemaNames(refs: any[]): string[] {
+  return refs.map((ref) => {
+    if (typeof ref === 'string') {
+      return ref;
+    }
+    if (ref.$ref) {
+      // Extract schema name from $ref path
+      const parts = ref.$ref.split('/');
+      return parts[parts.length - 1] || '';
+    }
+    return '';
+  }).filter(Boolean);
+}
+
+/**
+ * Capitalize first letter of a string
+ */
+function capitalize(str: string): string {
+  if (!str) {return '';}
+  return str.charAt(0).toUpperCase() + str.slice(1);
 }

@@ -1,0 +1,338 @@
+---
+gate_id: 7.0
+epic: Epic 7 - CLI Wrapper Bug Fix
+status: PENDING
+created: 2025-10-08
+reviewed_by: null
+approved_by: null
+approved_date: null
+
+# Gate Purpose
+purpose: >
+  Verify that CLI wrapper correctly parses arguments and generates MCP servers
+  without "Path is not a file:" errors. Ensure error messages are helpful
+  and comprehensive integration tests prevent regressions.
+
+# Stories Covered
+stories:
+  - id: 7.1
+    name: Fix CLI Argument Parsing
+    status: PLANNED
+  - id: 7.2
+    name: Improve Error Messages and Context
+    status: PLANNED
+  - id: 7.3
+    name: Add CLI Integration Tests
+    status: PLANNED
+
+# Acceptance Criteria
+
+## Story 7.1: CLI Argument Parsing
+story_7.1:
+  functional:
+    - criterion: CLI accepts file path as positional argument
+      test: |
+        node packages/cli/dist/index.js generate \
+          packages/generator/__tests__/fixtures/minimal-api.json \
+          --output test-output/qa-test-1 --force
+      expected: Generation succeeds, no "Path is not a file:" error
+      status: PENDING
+
+    - criterion: CLI works with relative paths
+      test: |
+        node packages/cli/dist/index.js generate \
+          ./packages/generator/__tests__/fixtures/minimal-api.json \
+          -o test-output/qa-test-2 --force
+      expected: Generation succeeds with relative path
+      status: PENDING
+
+    - criterion: CLI works with absolute paths
+      test: Uses full absolute path to minimal-api.json
+      expected: Generation succeeds with absolute path
+      status: PENDING
+
+    - criterion: CLI works with YAML files
+      test: |
+        node packages/cli/dist/index.js generate \
+          packages/parser/__tests__/fixtures/ozon-api-simplified.yaml \
+          -o test-output/qa-test-yaml --force
+      expected: Generation succeeds from YAML input
+      status: PENDING
+
+    - criterion: Arguments preserved through execution
+      test: Enable --debug and check logs show full path
+      expected: Debug logs show complete file paths, not empty strings
+      status: PENDING
+
+  quality:
+    - criterion: No regression in core generator
+      test: pnpm test packages/generator
+      expected: 994+ tests passing (current baseline)
+      status: PENDING
+
+    - criterion: TypeScript compilation clean
+      test: pnpm -r exec tsc --noEmit
+      expected: Zero errors in production code
+      status: PENDING
+
+## Story 7.2: Error Messages
+story_7.2:
+  functional:
+    - criterion: Error shows full file path
+      test: Try to generate from nonexistent file
+      expected: Error includes full path in message
+      status: PENDING
+
+    - criterion: Error includes actionable suggestion
+      test: Review error output format
+      expected: Error shows 💡 suggestion and 🔧 command
+      status: PENDING
+
+    - criterion: Debug mode shows execution trace
+      test: Run with --debug flag
+      expected: Detailed trace with timestamps and context
+      status: PENDING
+
+  quality:
+    - criterion: Error messages rated helpful
+      test: Manual review by 3 developers
+      expected: Average rating ≥8/10 for helpfulness
+      status: PENDING
+
+## Story 7.3: Integration Tests
+story_7.3:
+  functional:
+    - criterion: CLI integration tests exist
+      test: Check packages/cli/tests/integration/
+      expected: cli-generate.test.ts with comprehensive tests
+      status: PENDING
+
+    - criterion: All test scenarios pass
+      test: pnpm --filter @openapi-to-mcp/cli test:integration
+      expected: 100% tests passing
+      status: PENDING
+
+    - criterion: Error scenarios covered
+      test: Review test coverage for error cases
+      expected: Missing file, invalid OpenAPI, permissions all tested
+      status: PENDING
+
+  quality:
+    - criterion: Test coverage >90%
+      test: pnpm --filter @openapi-to-mcp/cli test:coverage
+      expected: CLI code coverage ≥90%
+      status: PENDING
+
+    - criterion: Tests run in CI
+      test: Check .github/workflows/test.yml
+      expected: CLI integration tests in pipeline
+      status: PENDING
+
+# Critical Path Tests
+
+## End-to-End Smoke Tests
+e2e_tests:
+  - test_id: E2E-7.1
+    name: Generate from minimal API
+    command: |
+      node packages/cli/dist/index.js generate \
+        packages/generator/__tests__/fixtures/minimal-api.json \
+        --output test-output/smoke-test-1 \
+        --force
+    verification:
+      - File test-output/smoke-test-1/package.json exists
+      - File test-output/smoke-test-1/src/index.ts exists
+      - File test-output/smoke-test-1/src/types.ts exists
+      - File test-output/smoke-test-1/src/tools.ts exists
+      - File test-output/smoke-test-1/src/http-client.ts exists
+      - File test-output/smoke-test-1/tsconfig.json exists
+      - File test-output/smoke-test-1/README.md exists
+    status: PENDING
+
+  - test_id: E2E-7.2
+    name: Generate and compile
+    command: |
+      node packages/cli/dist/index.js generate \
+        packages/generator/__tests__/fixtures/minimal-api.json \
+        --output test-output/smoke-test-2 \
+        --force && \
+      cd test-output/smoke-test-2 && \
+      npm install && \
+      npm run build
+    verification:
+      - npm install succeeds
+      - TypeScript compilation succeeds
+      - dist/ directory created with JS files
+    status: PENDING
+
+  - test_id: E2E-7.3
+    name: Verify error handling
+    command: |
+      node packages/cli/dist/index.js generate \
+        nonexistent-file.json \
+        --output test-output/error-test
+    verification:
+      - Command fails with exit code 1
+      - Error message contains "OpenAPI file not found"
+      - Error message contains "nonexistent-file.json"
+      - Error message shows suggestion
+    status: PENDING
+
+# Performance Benchmarks
+
+performance_tests:
+  - metric: CLI overhead
+    test: Measure time from CLI invocation to core generator call
+    target: <100ms
+    status: PENDING
+
+  - metric: Generation time
+    test: Time to generate from minimal API
+    target: <5 seconds
+    status: PENDING
+
+  - metric: Error response time
+    test: Time to detect and report error
+    target: <500ms
+    status: PENDING
+
+# Regression Tests
+
+regression_tests:
+  - test: Core generator tests still pass
+    command: pnpm test packages/generator
+    baseline: 994/1005 tests passing (99%)
+    target: No regressions
+    status: PENDING
+
+  - test: ESLint still passes
+    command: pnpm eslint packages/cli/src packages/generator/src
+    baseline: 0 errors
+    target: 0 errors
+    status: PENDING
+
+  - test: TypeScript still compiles
+    command: pnpm build
+    baseline: All packages build successfully
+    target: All packages build successfully
+    status: PENDING
+
+# Documentation Verification
+
+documentation_tests:
+  - doc: README.md examples
+    verification: All CLI examples execute successfully
+    status: PENDING
+
+  - doc: Epic 7 documentation
+    verification: Complete and accurate
+    status: PENDING
+
+  - doc: CLI help text
+    verification: Matches actual behavior
+    status: PENDING
+
+# Sign-off Checklist
+
+sign_off:
+  technical_lead:
+    name: null
+    approved: false
+    date: null
+    comments: null
+
+  qa_lead:
+    name: null
+    approved: false
+    date: null
+    comments: null
+
+  product_owner:
+    name: null
+    approved: false
+    date: null
+    comments: null
+
+# Gate Status Summary
+
+summary:
+  total_criteria: 24
+  passed: 0
+  failed: 0
+  pending: 24
+  blocked: 0
+
+  critical_issues: []
+
+  recommendations: []
+
+  next_steps:
+    - Implement Story 7.1: Fix CLI argument parsing
+    - Implement Story 7.2: Improve error messages
+    - Implement Story 7.3: Add CLI integration tests
+    - Run all gate tests
+    - Update status and get approvals
+
+# Quality Metrics
+
+metrics:
+  test_coverage:
+    cli_unit: null
+    cli_integration: null
+    target: 90%
+
+  code_quality:
+    eslint_errors: null
+    typescript_errors: null
+    target: 0
+
+  performance:
+    cli_overhead_ms: null
+    generation_time_s: null
+    error_response_ms: null
+
+  user_satisfaction:
+    error_helpfulness_rating: null
+    target: 8/10
+
+# Exit Criteria
+
+exit_criteria:
+  mandatory:
+    - All Story 7.1 acceptance criteria met
+    - All Story 7.2 acceptance criteria met
+    - All Story 7.3 acceptance criteria met
+    - All E2E smoke tests pass
+    - No regressions in core generator
+    - Test coverage ≥90%
+    - Technical lead approval
+    - QA lead approval
+
+  optional:
+    - Product owner approval
+    - Performance benchmarks met
+    - Documentation complete
+
+# Risk Assessment
+
+risks:
+  high: []
+  medium:
+    - Cross-platform compatibility (Windows testing limited)
+  low:
+    - Commander.js version compatibility
+
+# Notes
+
+notes: |
+  Epic 7 addresses critical CLI wrapper bug that prevents command-line usage.
+  Core generator works perfectly via programmatic API (tested via 994+ passing tests).
+  This epic focuses purely on CLI wrapper fixes, not core functionality.
+
+  Key findings from investigation:
+  - Error occurs at generate.ts:516 with empty openapiPath
+  - Likely caused by variable scope issue in async error handling
+  - Solution: Preserve arguments in closure immediately upon receipt
+  - Test strategy: Comprehensive CLI integration tests to prevent regression
+
+last_updated: 2025-10-08

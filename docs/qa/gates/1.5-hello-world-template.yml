@@ -47,8 +47,8 @@ recommendations:
   immediate: []
   future:
     - action: "Add E2E test suite for template generation (automated validation)"
-      refs: ["packages/templates/hello-world/"]
+      refs: ["packages/templates/hello-world (removed Story 6.3)/"]
     - action: "Consider adding more example tools with parameters"
-      refs: ["packages/templates/hello-world/src/index.ts"]
+      refs: ["packages/templates/hello-world (removed Story 6.3)/src/index.ts"]
     - action: "Add template for resources and prompts"
       refs: ["packages/templates/"]

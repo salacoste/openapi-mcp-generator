@@ -13,7 +13,7 @@ The Templates package provides pre-built boilerplate templates used by the OpenA
 
 ## Available Templates
 
-### `hello-world/`
+### `hello-world (removed Story 6.3)/`
 
 A minimal MCP server template demonstrating the basic structure and functionality.
 

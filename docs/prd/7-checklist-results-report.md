@@ -71,7 +71,7 @@
 - ✅ 8 epics with cohesive functionality
 - ✅ 72 stories (8-9 per epic) appropriately sized
 - ✅ Epic sequencing: Foundation → Parser → Generator → Auth → AI → Filtering → Polish → Launch
-- ✅ First epic includes: Repo setup, CI/CD, CLI framework, testing, hello-world generation
+- ✅ First epic includes: Repo setup, CI/CD, CLI framework, testing, hello-world (removed Story 6.3) generation
 - ✅ Acceptance criteria comprehensive and testable
 - ✅ Vertical slices: Each story delivers independent value
 - ✅ Story sizing: 2-5 hours per story (AI agent-sized)

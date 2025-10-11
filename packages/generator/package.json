@@ -6,19 +6,21 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts",
-    "dev": "tsup src/index.ts --format esm --watch",
+    "build": "tsup src/index.ts --format esm --dts --external fs-extra",
+    "dev": "tsup src/index.ts --format esm --watch --external fs-extra",
     "test": "vitest run",
     "test:watch": "vitest",
     "clean": "rm -rf dist"
   },
   "dependencies": {
     "@openapi-to-mcp/parser": "workspace:*",
+    "debug": "4.3.4",
     "fs-extra": "11.2.0",
     "handlebars": "4.7.8",
     "prettier": "3.2.4"
   },
   "devDependencies": {
+    "@types/debug": "4.1.12",
     "@types/fs-extra": "^11.0.4",
     "@types/handlebars": "4.1.0",
     "@types/node": "^20.11.0",

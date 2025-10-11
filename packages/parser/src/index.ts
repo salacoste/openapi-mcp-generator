@@ -10,7 +10,7 @@ export const version = '0.1.0';
 export { loadOpenAPIDocument, loadOpenAPI } from './loader.js';
 
 // Export validator functions
-export { validateOpenAPISchema } from './validator.js';
+export { validateOpenAPISchema, normalizeDocument } from './validator.js';
 
 // Export reference resolver functions
 export { resolveReferences } from './ref-resolver.js';
@@ -214,8 +214,14 @@ export interface ParseResult {
  * console.log(`Parse time: ${result.metadata.parseTime}ms`);
  * ```
  */
+export interface ParseOptions {
+  /** Skip OpenAPI schema validation */
+  skipValidation?: boolean;
+}
+
 export async function parseOpenAPIDocument(
-  filePath: string
+  filePath: string,
+  options?: ParseOptions
 ): Promise<ParseResult> {
   const startTime = Date.now();
   const errors: Array<ValidationIssue | ResolutionError | Error> = [];
@@ -226,16 +232,20 @@ export async function parseOpenAPIDocument(
   const document = loaderResult.document;
 
   // Story 2.2: Validate schema
-  const validationResult = await validateOpenAPISchema(document);
-  if (!validationResult.valid) {
-    errors.push(...validationResult.errors);
-    throw new Error(
-      `OpenAPI validation failed with ${validationResult.errors.length} error(s)`
+  if (!options?.skipValidation) {
+    const validationResult = await validateOpenAPISchema(document);
+    if (!validationResult.valid) {
+      errors.push(...validationResult.errors);
+      throw new Error(
+        `OpenAPI validation failed with ${validationResult.errors.length} error(s)`
+      );
+    }
+    warnings.push(
+      ...validationResult.warnings.map((issue) => `${issue.path}: ${issue.message}`)
     );
+  } else {
+    warnings.push('OpenAPI validation skipped (skipValidation: true)');
   }
-  warnings.push(
-    ...validationResult.warnings.map((issue) => `${issue.path}: ${issue.message}`)
-  );
 
   // Story 2.3: Resolve references
   const basePath = dirname(filePath);

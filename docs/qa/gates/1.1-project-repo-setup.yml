@@ -22,9 +22,9 @@ top_issues:
     suggested_action: "Address during Epic 4 (Template Development) - template code not part of core infrastructure"
     suggested_owner: dev
     refs:
-      - "packages/templates/hello-world/src/index.ts:19"
-      - "packages/templates/hello-world/src/index.ts:70"
-      - "packages/templates/hello-world/src/index.ts:75"
+      - "packages/templates/hello-world (removed Story 6.3)/src/index.ts:19"
+      - "packages/templates/hello-world (removed Story 6.3)/src/index.ts:70"
+      - "packages/templates/hello-world (removed Story 6.3)/src/index.ts:75"
 
   - id: "VERSION-001"
     severity: low
@@ -93,7 +93,7 @@ recommendations:
       priority: low
 
     - action: "Address template code linting violations during Epic 4"
-      refs: ["packages/templates/hello-world/src/index.ts"]
+      refs: ["packages/templates/hello-world (removed Story 6.3)/src/index.ts"]
       priority: low
 
     - action: "Consider adding .prettierignore to exclude generated files"

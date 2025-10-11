@@ -125,7 +125,7 @@ ${substitutions.join('\n')}`;
 function generateQueryMapping(queryParams: ParameterMetadata[]): string {
   if (queryParams.length === 0) {
     return `      // Build query parameters
-      const params: Record<string, unknown> = {};`;
+      const params = {};`;
   }
 
   const mappings = queryParams.map(param => {
@@ -147,7 +147,7 @@ function generateQueryMapping(queryParams: ParameterMetadata[]): string {
   });
 
   return `      // Build query parameters
-      const params: Record<string, unknown> = {};
+      const params = {};
 ${mappings.join('\n')}`;
 }
 
@@ -160,7 +160,7 @@ function generateHeaderMapping(headerParams: ParameterMetadata[]): string {
 
   if (customHeaders.length === 0) {
     return `      // Build custom headers
-      const headers: Record<string, string> = {};`;
+      const headers = {};`;
   }
 
   const mappings = customHeaders.map(param => {
@@ -170,7 +170,7 @@ function generateHeaderMapping(headerParams: ParameterMetadata[]): string {
   });
 
   return `      // Build custom headers
-      const headers: Record<string, string> = {};
+      const headers = {};
 ${mappings.join('\n')}`;
 }
 
@@ -199,12 +199,10 @@ function generateHttpCall(operation: OperationMetadata): string {
 
   if (supportsBody && hasBody) {
     return `      // Execute HTTP request
-      const response = await client.${method}<unknown>(url, data, { params, headers });
-      return response;`;
+      const response = await client.${method}(url, data, { params, headers });`;
   } else {
     return `      // Execute HTTP request
-      const response = await client.${method}<unknown>(url, { params, headers });
-      return response;`;
+      const response = await client.${method}(url, { params, headers });`;
   }
 }
 

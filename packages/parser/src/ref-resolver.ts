@@ -66,7 +66,7 @@ export interface ResolutionError {
  */
 export async function resolveReferences(
   document: unknown,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   _basePath?: string
 ): Promise<ResolutionResult> {
   try {

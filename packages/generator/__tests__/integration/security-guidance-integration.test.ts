@@ -62,43 +62,22 @@ describe('Security Guidance Integration', () => {
       expect(guidance.warnings).toHaveLength(0);
     });
 
-    it('should handle Stripe API security (Bearer + optional OAuth2)', () => {
+    it('should handle API with Bearer token (typical REST API)', () => {
       const schemes: SecuritySchemeTemplateData[] = [
         {
           name: 'bearerAuth',
           type: 'http',
           scheme: 'bearer',
         },
-        {
-          name: 'oauth2',
-          type: 'oauth2',
-          flows: {
-            authorizationCode: {
-              authorizationUrl: 'https://connect.stripe.com/oauth/authorize',
-              tokenUrl: 'https://connect.stripe.com/oauth/token',
-              scopes: {
-                read_write: 'Read and write access',
-              },
-            },
-          },
-        },
       ];
 
-      const globalSecurity = [
-        { bearerAuth: [] },
-        { oauth2: ['read_write'] },
-      ];
+      const guidance = analyzeSecurityRequirements(schemes);
 
-      const guidance = analyzeSecurityRequirements(schemes, globalSecurity);
-
-      // Bearer is supported, OAuth2 is unsupported
+      // Bearer is supported
       expect(guidance.required).toContain('bearerAuth');
-      expect(guidance.optional).toContain('oauth2');
-      expect(guidance.unsupported).toHaveLength(1);
-      expect(guidance.unsupported[0].type).toBe('oauth2');
-
-      // Should detect OR logic (alternative authentication)
-      expect(guidance.usesOrLogic).toBe(true);
+      expect(guidance.envVars).toHaveLength(1);
+      expect(guidance.envVars[0].name).toBe('BEARER_TOKEN');
+      expect(guidance.unsupported).toHaveLength(0);
     });
 
     it('should handle Basic Auth API', () => {
@@ -145,14 +124,9 @@ describe('Security Guidance Integration', () => {
     it('should format unsupported schemes with workarounds', () => {
       const schemes: SecuritySchemeTemplateData[] = [
         {
-          name: 'oauth2',
-          type: 'oauth2',
-          flows: {
-            implicit: {
-              authorizationUrl: 'https://example.com/oauth/authorize',
-              scopes: {},
-            },
-          },
+          name: 'oidc',
+          type: 'openIdConnect',
+          openIdConnectUrl: 'https://example.com/.well-known/openid-configuration',
         },
       ];
 
@@ -160,7 +134,7 @@ describe('Security Guidance Integration', () => {
       const formatted = formatSecurityGuidance(guidance);
 
       expect(formatted).toContain('Unsupported Schemes');
-      expect(formatted).toContain('oauth2');
+      expect(formatted).toContain('oidc');
       expect(formatted).toContain('Manual Implementation Required');
       expect(formatted).toContain('BEARER_TOKEN');
     });

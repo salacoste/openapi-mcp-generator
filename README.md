@@ -1,8 +1,9 @@
 # OpenAPI-to-MCP Generator
 
-> Universal generator that converts OpenAPI/Swagger specifications into MCP (Model Context Protocol) servers, enabling AI agents to interact with any REST API.
+> Automatically generate Model Context Protocol (MCP) servers from OpenAPI 3.0 specifications, enabling AI agents to interact with any REST API.
 
 [![CI Pipeline](https://github.com/salacoste/openapi-mcp-generator/actions/workflows/test.yml/badge.svg)](https://github.com/salacoste/openapi-mcp-generator/actions/workflows/test.yml)
+[![Type Coverage](https://img.shields.io/badge/type_coverage-99.38%25-brightgreen.svg)](./docs/epic-6-completion-summary.md)
 [![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/salacoste/openapi-mcp-generator)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue.svg)](https://www.typescriptlang.org/)
@@ -12,12 +13,14 @@
 
 ## ✨ Features
 
-- 🔄 **Universal**: Works with any valid OpenAPI 3.0 specification
-- 🤖 **AI-First**: Optimized tool descriptions and responses for AI consumption
-- 🎯 **Smart Filtering**: Tag-based categorization to manage 200+ API methods
-- 📝 **Type-Safe**: Generates TypeScript types from OpenAPI schemas
-- ⚡ **Fast**: Parses Ozon API (39 paths, 87 schemas) in < 100ms
-- 🔌 **Ready-to-Use**: Generates complete, deployable MCP servers
+- ✅ **Full OpenAPI 3.0 Support** - Parse and convert any valid OpenAPI 3.0 specification
+- ✅ **Complete Type Generation** - TypeScript interfaces for all schemas with JSDoc comments
+- ✅ **Type Safety Excellence** - 99.38% type coverage with CI enforcement (exceeds 95% industry standard)
+- ✅ **Automatic Tool Creation** - MCP tools for every API operation with parameter validation
+- ✅ **Authentication Support** - Built-in support for API Key, Bearer Token, OAuth 2.0, Basic Auth
+- ✅ **Production Ready** - Generated servers compile, run, and integrate with Claude Desktop
+- ✅ **Fast Generation** - Generate complete servers in seconds (<30s for 260KB specs)
+- ✅ **Error Handling** - Comprehensive validation with actionable error messages and rollback support
 
 ---
 
@@ -26,42 +29,92 @@
 ### Installation
 
 ```bash
-# Install globally
-npm install -g openapi-to-mcp
+# Install globally (recommended)
+npm install -g @openapi-to-mcp/cli
 
-# Or use locally in project
-npm install --save-dev openapi-to-mcp
+# Or use with npx (no installation)
+npx @openapi-to-mcp/cli generate swagger.json --output ./my-mcp-server
 ```
 
 ### Generate MCP Server
 
 ```bash
-# From OpenAPI spec file
-openapi-to-mcp generate ./swagger.json -o ./my-mcp-server
+# Generate from OpenAPI spec
+@openapi-to-mcp/cli generate swagger.json --output ./my-mcp-server
 
-# Navigate and start
+# Example output from Ozon Performance API (260KB spec):
+# ✅ Parsing OpenAPI spec... (260KB)
+# ✅ Validated OpenAPI schema
+# ✅ Resolved 45 $ref references
+# ✅ Extracted 220 schemas
+# ✅ Extracted 39 operations
+# ✅ Extracted 3 security schemes
+# ✅ Extracted 12 tags
+# ✅ Extracted 1 server(s)
+# ✅ Scaffolding project structure...
+# ✅ Generating TypeScript interfaces... (220 types)
+# ✅ Generating MCP tool definitions... (39 tools)
+# ✅ Generating server files...
+# ✅ MCP server generated successfully at ./my-mcp-server
+
+# Build and run
 cd my-mcp-server
 npm install
-export API_TOKEN="your-token-here"
-npm start
+npm run build
+node dist/index.js
 ```
 
-### Use in AI Agent
+### Use with Claude Desktop
+
+Add to your `claude_desktop_config.json`:
 
 ```json
-// Claude Desktop config
 {
   "mcpServers": {
     "my-api": {
       "command": "node",
-      "args": ["/path/to/my-mcp-server/dist/server.js"],
+      "args": ["/absolute/path/to/my-mcp-server/dist/index.js"],
       "env": {
-        "API_TOKEN": "your-token-here"
+        "API_KEY": "your-api-key-here"
       }
     }
   }
 }
 ```
+
+Restart Claude Desktop and your API tools will be available!
+
+---
+
+## 📊 Example Output
+
+From the [Ozon Performance API](https://api-seller.ozon.ru/) OpenAPI specification (260KB):
+
+```
+my-mcp-server/
+├── package.json          # Dependencies: @modelcontextprotocol/sdk, axios, zod
+├── tsconfig.json         # TypeScript config: ES2022, ESM, strict mode
+├── README.md             # Generated usage instructions
+├── .env.example          # Environment variables template
+└── src/
+    ├── index.ts          # MCP server entry point (39 tools registered)
+    ├── types.ts          # 220 TypeScript interfaces with JSDoc
+    ├── tools.ts          # 39 MCP tool definitions
+    └── http-client.ts    # HTTP client with authentication
+```
+
+**Generated Tools** (39 total):
+- `postBotsSendMessage` - Send messages via bot
+- `postPerformanceReports` - Get performance analytics
+- `postProductsInfo` - Retrieve product information
+- `postV1ActionsProducts` - Manage product actions
+- And 35 more...
+
+**Generated Types** (220+ interfaces):
+- `BotSendMessageRequest`, `BotSendMessageResponse`
+- `PerformanceReportRequest`, `PerformanceData`
+- `ProductInfoRequest`, `ProductDetails`
+- And 217 more...
 
 ---
 
@@ -69,9 +122,11 @@ npm start
 
 | Document | Description |
 |----------|-------------|
+| [Quick Start Tutorial](./docs/guides/quick-start.md) | Generate your first MCP server in 5 minutes |
+| [Generation Pipeline](./docs/guides/generation-pipeline.md) | Architecture and data flow |
+| [Troubleshooting Guide](./docs/guides/troubleshooting.md) | Common issues and solutions |
 | [Project Brief](./docs/brief.md) | Project overview, goals, and scope |
-| [OpenAPI Research](./docs/openapi-research.md) | Complete OpenAPI 3.0 analysis with Ozon API validation |
-| [Architecture](./docs/architecture.md) | System design, algorithms, and decisions |
+| [Architecture](./docs/architecture.md) | System design and algorithms |
 | [API Reference](./docs/api-reference.md) | Complete API documentation |
 | [Examples](./docs/examples.md) | Usage examples and recipes |
 | [Testing Guide](./docs/testing.md) | Testing strategy and test cases |

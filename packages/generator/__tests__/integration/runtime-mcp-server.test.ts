@@ -36,7 +36,7 @@ class MCPClient {
       buffer = lines.pop() || '';
 
       for (const line of lines) {
-        if (!line.trim()) continue;
+        if (!line.trim()) {continue;}
         try {
           const message = JSON.parse(line);
           if (message.id !== undefined) {
@@ -50,7 +50,7 @@ class MCPClient {
               }
             }
           }
-        } catch (error) {
+        } catch {
           // Ignore non-JSON lines (server logs)
         }
       }
